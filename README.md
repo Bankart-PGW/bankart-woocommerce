@@ -1,6 +1,6 @@
 # Bankart Payment Gateway WooCommerce Extension
 
-##System Requirements
+## System Requirements
 Plugin Woocommerce should be installed and activated on WordPress prior installation of this payment plugin.
 
 ## Preinstallation
