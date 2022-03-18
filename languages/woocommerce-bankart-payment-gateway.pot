@@ -1,0 +1,357 @@
+# Copyright (C) 2021 Bankart
+# This file is distributed under the same license as the WooCommerce Bankart Payment Gateway Extension plugin.
+msgid ""
+msgstr ""
+"Project-Id-Version: WooCommerce Bankart Payment Gateway Extension 1.7.3.2\n"
+"Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/woocommerce-bankart-payment-gateway\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"POT-Creation-Date: 2021-10-07T18:13:58+00:00\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"X-Generator: WP-CLI 2.5.0\n"
+"X-Domain: woocommerce-bankart-payment-gateway\n"
+
+#. Plugin Name of the plugin
+msgid "WooCommerce Bankart Payment Gateway Extension"
+msgstr ""
+
+#. Description of the plugin
+msgid "Bankart Payment Gateway for WooCommerce"
+msgstr ""
+
+#. Author of the plugin
+msgid "Bankart"
+msgstr ""
+
+#: classes/includes/bankart-payment-gateway-diners.php:9
+msgid "Diners cards"
+msgstr ""
+
+#: classes/includes/bankart-payment-gateway-diners.php:11
+msgid "For accepting Diners card payments using Bankart Payment Gateway and Erstecard (Slovenia) credentials"
+msgstr ""
+
+#: classes/includes/bankart-payment-gateway-diners.php:18
+#: classes/includes/bankart-payment-gateway-mcvisa.php:18
+#: classes/includes/bankart-payment-gateway-paymentcard.php:368
+msgid "Title"
+msgstr ""
+
+#: classes/includes/bankart-payment-gateway-diners.php:20
+#: classes/includes/bankart-payment-gateway-mcvisa.php:20
+#: classes/includes/bankart-payment-gateway-paymentcard.php:370
+msgid "Text displayed to the customer on the payment selection menu"
+msgstr ""
+
+#: classes/includes/bankart-payment-gateway-diners.php:21
+msgid "Diners card"
+msgstr ""
+
+#: classes/includes/bankart-payment-gateway-diners.php:24
+#: classes/includes/bankart-payment-gateway-mcvisa.php:24
+#: classes/includes/bankart-payment-gateway-paymentcard.php:374
+msgid "Description"
+msgstr ""
+
+#: classes/includes/bankart-payment-gateway-diners.php:26
+#: classes/includes/bankart-payment-gateway-mcvisa.php:26
+#: classes/includes/bankart-payment-gateway-paymentcard.php:376
+msgid "Description of the payment method displayed to the customer"
+msgstr ""
+
+#: classes/includes/bankart-payment-gateway-diners.php:27
+msgid "Pay securely for your order with a Diners card."
+msgstr ""
+
+#: classes/includes/bankart-payment-gateway-diners.php:30
+#: classes/includes/bankart-payment-gateway-mcvisa.php:30
+#: classes/includes/bankart-payment-gateway-paymentcard.php:380
+msgid "API User"
+msgstr ""
+
+#: classes/includes/bankart-payment-gateway-diners.php:32
+#: classes/includes/bankart-payment-gateway-mcvisa.php:32
+#: classes/includes/bankart-payment-gateway-paymentcard.php:382
+msgid "Your API username credential"
+msgstr ""
+
+#: classes/includes/bankart-payment-gateway-diners.php:36
+#: classes/includes/bankart-payment-gateway-mcvisa.php:36
+#: classes/includes/bankart-payment-gateway-paymentcard.php:386
+msgid "API Password"
+msgstr ""
+
+#: classes/includes/bankart-payment-gateway-diners.php:38
+#: classes/includes/bankart-payment-gateway-mcvisa.php:38
+#: classes/includes/bankart-payment-gateway-paymentcard.php:388
+msgid "Your API password"
+msgstr ""
+
+#: classes/includes/bankart-payment-gateway-diners.php:42
+#: classes/includes/bankart-payment-gateway-mcvisa.php:42
+#: classes/includes/bankart-payment-gateway-paymentcard.php:392
+msgid "API Key"
+msgstr ""
+
+#: classes/includes/bankart-payment-gateway-diners.php:44
+#: classes/includes/bankart-payment-gateway-mcvisa.php:44
+#: classes/includes/bankart-payment-gateway-paymentcard.php:394
+msgid "Your payment connector API key"
+msgstr ""
+
+#: classes/includes/bankart-payment-gateway-diners.php:48
+#: classes/includes/bankart-payment-gateway-mcvisa.php:48
+#: classes/includes/bankart-payment-gateway-paymentcard.php:398
+msgid "Shared Secret"
+msgstr ""
+
+#: classes/includes/bankart-payment-gateway-diners.php:50
+#: classes/includes/bankart-payment-gateway-mcvisa.php:50
+#: classes/includes/bankart-payment-gateway-paymentcard.php:400
+msgid "Your payment connector shared secret"
+msgstr ""
+
+#: classes/includes/bankart-payment-gateway-diners.php:54
+#: classes/includes/bankart-payment-gateway-mcvisa.php:54
+#: classes/includes/bankart-payment-gateway-paymentcard.php:404
+msgid "Integration Key"
+msgstr ""
+
+#: classes/includes/bankart-payment-gateway-diners.php:56
+#: classes/includes/bankart-payment-gateway-mcvisa.php:56
+#: classes/includes/bankart-payment-gateway-paymentcard.php:406
+msgid "Integration key for Payment.js fields"
+msgstr ""
+
+#: classes/includes/bankart-payment-gateway-diners.php:60
+#: classes/includes/bankart-payment-gateway-mcvisa.php:60
+#: classes/includes/bankart-payment-gateway-paymentcard.php:410
+msgid "Transaction type"
+msgstr ""
+
+#: classes/includes/bankart-payment-gateway-diners.php:62
+msgid "Erstecard (Slovenia) only allows debit transactions"
+msgstr ""
+
+#: classes/includes/bankart-payment-gateway-diners.php:65
+#: classes/includes/bankart-payment-gateway-mcvisa.php:65
+#: classes/includes/bankart-payment-gateway-paymentcard.php:415
+msgid "Debit"
+msgstr ""
+
+#: classes/includes/bankart-payment-gateway-diners.php:69
+#: classes/includes/bankart-payment-gateway-mcvisa.php:70
+#: classes/includes/bankart-payment-gateway-paymentcard.php:420
+msgid "Preauthorize approved"
+msgstr ""
+
+#: classes/includes/bankart-payment-gateway-diners.php:71
+#: classes/includes/bankart-payment-gateway-mcvisa.php:72
+#: classes/includes/bankart-payment-gateway-paymentcard.php:422
+msgid "Select the order status for successful preauthorization"
+msgstr ""
+
+#: classes/includes/bankart-payment-gateway-diners.php:79
+#: classes/includes/bankart-payment-gateway-mcvisa.php:80
+#: classes/includes/bankart-payment-gateway-paymentcard.php:430
+msgid "Installments"
+msgstr ""
+
+#: classes/includes/bankart-payment-gateway-diners.php:81
+#: classes/includes/bankart-payment-gateway-mcvisa.php:62
+#: classes/includes/bankart-payment-gateway-mcvisa.php:82
+#: classes/includes/bankart-payment-gateway-paymentcard.php:412
+#: classes/includes/bankart-payment-gateway-paymentcard.php:432
+msgid "Select the option based on the agreement with your acquiring bank"
+msgstr ""
+
+#: classes/includes/bankart-payment-gateway-diners.php:84
+#: classes/includes/bankart-payment-gateway-mcvisa.php:85
+#: classes/includes/bankart-payment-gateway-paymentcard.php:435
+msgid "Instalments disabled"
+msgstr ""
+
+#: classes/includes/bankart-payment-gateway-diners.php:85
+msgid "Up to 6 instalments"
+msgstr ""
+
+#: classes/includes/bankart-payment-gateway-diners.php:86
+#: classes/includes/bankart-payment-gateway-mcvisa.php:86
+#: classes/includes/bankart-payment-gateway-paymentcard.php:436
+msgid "Up to 12 instalments"
+msgstr ""
+
+#: classes/includes/bankart-payment-gateway-diners.php:87
+#: classes/includes/bankart-payment-gateway-mcvisa.php:87
+#: classes/includes/bankart-payment-gateway-paymentcard.php:437
+msgid "Up to 24 instalments"
+msgstr ""
+
+#: classes/includes/bankart-payment-gateway-diners.php:88
+msgid "Up to 36 instalments"
+msgstr ""
+
+#: classes/includes/bankart-payment-gateway-diners.php:92
+#: classes/includes/bankart-payment-gateway-mcvisa.php:91
+#: classes/includes/bankart-payment-gateway-paymentcard.php:441
+msgid "Describe instalment option"
+msgstr ""
+
+#: classes/includes/bankart-payment-gateway-diners.php:94
+#: classes/includes/bankart-payment-gateway-mcvisa.php:93
+#: classes/includes/bankart-payment-gateway-paymentcard.php:443
+msgid "Description of the instalments option displayed to the customer"
+msgstr ""
+
+#: classes/includes/bankart-payment-gateway-diners.php:95
+#: classes/includes/bankart-payment-gateway-mcvisa.php:94
+#: classes/includes/bankart-payment-gateway-paymentcard.php:444
+msgid "Select the number of instalments, if your payment card supports selecting instalments at the point of sale"
+msgstr ""
+
+#: classes/includes/bankart-payment-gateway-diners.php:98
+#: classes/includes/bankart-payment-gateway-mcvisa.php:97
+#: classes/includes/bankart-payment-gateway-paymentcard.php:447
+msgid "Minimum instalment amount"
+msgstr ""
+
+#: classes/includes/bankart-payment-gateway-diners.php:100
+#: classes/includes/bankart-payment-gateway-mcvisa.php:99
+#: classes/includes/bankart-payment-gateway-paymentcard.php:449
+msgid "Based on this amount the maximum number of allowed instalments will be calculated"
+msgstr ""
+
+#: classes/includes/bankart-payment-gateway-mcvisa.php:9
+msgid "Maestro Mastercard VISA cards"
+msgstr ""
+
+#: classes/includes/bankart-payment-gateway-mcvisa.php:11
+msgid "For accepting Maestro, Mastercard and VISA card payments using Bankart Payment Gateway (Slovenian banks)"
+msgstr ""
+
+#: classes/includes/bankart-payment-gateway-mcvisa.php:21
+msgid "Maestro/Mastercard/VISA"
+msgstr ""
+
+#: classes/includes/bankart-payment-gateway-mcvisa.php:27
+msgid "Pay securely for your order with your debit or credit card."
+msgstr ""
+
+#: classes/includes/bankart-payment-gateway-mcvisa.php:66
+#: classes/includes/bankart-payment-gateway-paymentcard.php:416
+msgid "Preauthorize/Capture/Void"
+msgstr ""
+
+#: classes/includes/bankart-payment-gateway-paymentcard.php:64
+msgid "Payment cards"
+msgstr ""
+
+#: classes/includes/bankart-payment-gateway-paymentcard.php:65
+msgid "For accepting card payments using Bankart Payment Gateway"
+msgstr ""
+
+#: classes/includes/bankart-payment-gateway-paymentcard.php:122
+msgid "Awaiting payment"
+msgstr ""
+
+#: classes/includes/bankart-payment-gateway-paymentcard.php:287
+#: classes/includes/bankart-payment-gateway-paymentcard.php:288
+#: woocommerce-bankart-payment-gateway.php:57
+msgid "Payment failed or was declined"
+msgstr ""
+
+#: classes/includes/bankart-payment-gateway-paymentcard.php:330
+msgid "Payment authorized. Awaiting capture/void."
+msgstr ""
+
+#: classes/includes/bankart-payment-gateway-paymentcard.php:339
+msgid "Payment voided"
+msgstr ""
+
+#: classes/includes/bankart-payment-gateway-paymentcard.php:347
+#: classes/includes/bankart-payment-gateway-paymentcard.php:354
+msgid "Error"
+msgstr ""
+
+#: classes/includes/bankart-payment-gateway-paymentcard.php:371
+msgid "Payment card"
+msgstr ""
+
+#: classes/includes/bankart-payment-gateway-paymentcard.php:377
+msgid "Pay securely for your order with a payment card."
+msgstr ""
+
+#: classes/includes/bankart-payment-gateway-paymentcard.php:503
+msgid "Card holder"
+msgstr ""
+
+#: classes/includes/bankart-payment-gateway-paymentcard.php:512
+msgid "Card number"
+msgstr ""
+
+#: classes/includes/bankart-payment-gateway-paymentcard.php:521
+msgid "CVV2/CVC2"
+msgstr ""
+
+#: classes/includes/bankart-payment-gateway-paymentcard.php:530
+msgid "Expiration date"
+msgstr ""
+
+#: classes/includes/bankart-payment-gateway-paymentcard.php:564
+msgid "Number of instalments"
+msgstr ""
+
+#: woocommerce-bankart-payment-gateway.php:75
+msgid "Number of instalments:"
+msgstr ""
+
+#: assets/js/bankart-payment-gateway.js:15
+msgid "First name must not be empty"
+msgstr ""
+
+#: assets/js/bankart-payment-gateway.js:18
+msgid "Last name must not be empty"
+msgstr ""
+
+#: assets/js/bankart-payment-gateway.js:21
+msgid "Cardholder must not be empty"
+msgstr ""
+
+#: assets/js/bankart-payment-gateway.js:24
+msgid "Expiration month must not be empty"
+msgstr ""
+
+#: assets/js/bankart-payment-gateway.js:25
+msgid "Invalid expiration month"
+msgstr ""
+
+#: assets/js/bankart-payment-gateway.js:28
+msgid "Expiration year must not be empty"
+msgstr ""
+
+#: assets/js/bankart-payment-gateway.js:29
+msgid "Invalid expiration year"
+msgstr ""
+
+#: assets/js/bankart-payment-gateway.js:30
+msgid "Card expired"
+msgstr ""
+
+#: assets/js/bankart-payment-gateway.js:33
+msgid "Card number must not be empty"
+msgstr ""
+
+#: assets/js/bankart-payment-gateway.js:34
+msgid "Invalid card number"
+msgstr ""
+
+#: assets/js/bankart-payment-gateway.js:37
+msgid "CVV code must not be empty"
+msgstr ""
+
+#: assets/js/bankart-payment-gateway.js:38
+msgid "Invalid CVV code"
+msgstr ""

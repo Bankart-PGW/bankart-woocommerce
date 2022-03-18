@@ -1,0 +1,27 @@
+{
+    "translation-revision-date": "2019-11-10 21:59+0100",
+    "generator": "WP-CLI\/2.3.0",
+    "source": "assets\/js\/bankart-payment-gateway.js",
+    "domain": "woocommerce-bankart-payment-gateway",
+    "locale_data": {
+        "woocommerce-bankart-payment-gateway": {
+            "": {
+                "domain": "woocommerce-bankart-payment-gateway",
+                "lang": "sl_SI",
+                "plural-forms": "nplurals=4; plural=(n%100==1 ? 0 : n%100==2 ? 1 : n%100>=3 && n%100<=4 ? 2 : 3);"
+            },
+            "First name must not be empty": ["Prosim vnesite ime imetnika kartice"],
+            "Last name must not be empty": ["Prosim vnesite priimek imetnika kartice"],
+            "Cardholder must not be empty": ["Prosim vnesite ime in priimek imetnika kartice"],
+            "Expiration month must not be empty": ["Prosim izberite mesec poteka veljavnosti"],
+            "Invalid expiration month": ["Napa\u010den mesec veljavnosti"],
+            "Expiration year must not be empty": ["Prosim izberite leto poteka veljavnosti"],
+            "Invalid expiration year": ["Napa\u010dno leto poteka veljavnosti"],
+            "Card expired": ["Kartica je potekla"],
+            "Card number must not be empty": ["Prosim vnesite svojo \u0161tevilko pla\u010dilne kartice"],
+            "Invalid card number": ["Nepravilna \u0161tevilka kartice"],
+            "CVV code must not be empty": ["Prosim vnesite svojo varnostno kodo"],
+            "Invalid CVV code": ["Neveljavna varnostna koda"]
+        }
+    }
+}
