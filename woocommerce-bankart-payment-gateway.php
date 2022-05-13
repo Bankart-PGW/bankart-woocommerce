@@ -16,7 +16,7 @@ if (!defined('ABSPATH')) {
 define('BANKART_PAYMENT_GATEWAY_EXTENSION_URL', 'https://gateway.bankart.si/');
 #define('BANKART_PAYMENT_GATEWAY_EXTENSION_URL', 'https://bankart.paymentsandbox.cloud/');
 define('BANKART_PAYMENT_GATEWAY_EXTENSION_NAME', 'Bankart Payment Gateway');
-define('BANKART_PAYMENT_GATEWAY_EXTENSION_VERSION', '1.7.4');
+define('BANKART_PAYMENT_GATEWAY_EXTENSION_VERSION', '1.7.4.1');
 define('BANKART_PAYMENT_GATEWAY_EXTENSION_UID_PREFIX', 'bankart_payment_gateway_');
 define('BANKART_PAYMENT_GATEWAY_EXTENSION_BASEDIR', plugin_dir_path(__FILE__));
 
