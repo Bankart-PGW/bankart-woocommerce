@@ -2,7 +2,7 @@
 /**
  * Plugin Name: WooCommerce Bankart Payment Gateway Extension
  * Description: Bankart Payment Gateway for WooCommerce
- * Version: 1.7.4
+ * Version: 1.7.4.1
  * Author: Bankart
  * WC requires at least: 3.6.0
  * WC tested up to: 5.0.0

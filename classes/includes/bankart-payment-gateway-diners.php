@@ -59,10 +59,11 @@ final class WC_BankartPaymentGateway_Diners extends WC_BankartPaymentGateway_Pay
             'transactionRequest' => [
                 'title' => __('Transaction type', 'woocommerce-bankart-payment-gateway'),
                 'type' => 'select',
-                'description' => __('Erstecard (Slovenia) only allows debit transactions', 'woocommerce-bankart-payment-gateway'),
+                'description' => __('Select the option based on the agreement with your acquiring bank', 'woocommerce-bankart-payment-gateway'),
                 'default' => 'debit',
                 'options' => [
                     'debit' => __('Debit', 'woocommerce-bankart-payment-gateway'),
+					'preauthorize' => __('Preauthorize/Capture/Void', 'woocommerce-bankart-payment-gateway'),
                 ],
             ],
             'preauthorizeSuccess' => [
