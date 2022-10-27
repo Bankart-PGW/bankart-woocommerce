@@ -3,7 +3,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: WooCommerce Bankart Payment Gateway Extension "
-"1.7.3.2\n"
+"1.7.4.2\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/woocommerce-"
 "bankart-payment-gateway\n"
 "Language-Team: \n"
