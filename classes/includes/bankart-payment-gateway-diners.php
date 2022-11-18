@@ -101,6 +101,16 @@ final class WC_BankartPaymentGateway_Diners extends WC_BankartPaymentGateway_Pay
                 'description' => __('Based on this amount the maximum number of allowed instalments will be calculated', 'woocommerce-bankart-payment-gateway'),
                 'default' => '50',
             ],
+			'force_challenge' => [
+                'title' => __('Merchant prefers challange', 'woocommerce-bankart-payment-gateway'),
+                'type' => 'select',
+                'description' => __('Challaenge requested: 3DS Requestor preference', 'woocommerce-bankart-payment-gateway'),
+				'default' => '0',
+				'options' => [
+                    '0' => __('No', 'woocommerce-bankart-payment-gateway'),
+                    '1' => __('Yes', 'woocommerce-bankart-payment-gateway'),
+				],
+            ],
         ];
     }
 }

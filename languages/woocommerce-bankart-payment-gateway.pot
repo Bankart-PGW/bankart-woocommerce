@@ -2,7 +2,7 @@
 # This file is distributed under the same license as the WooCommerce Bankart Payment Gateway Extension plugin.
 msgid ""
 msgstr ""
-"Project-Id-Version: WooCommerce Bankart Payment Gateway Extension 1.7.4.2\n"
+"Project-Id-Version: WooCommerce Bankart Payment Gateway Extension 1.7.4.3\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/woocommerce-bankart-payment-gateway\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -222,6 +222,18 @@ msgstr ""
 #: classes/includes/bankart-payment-gateway-mcvisa.php:99
 #: classes/includes/bankart-payment-gateway-paymentcard.php:449
 msgid "Based on this amount the maximum number of allowed instalments will be calculated"
+msgstr ""
+
+#: classes/includes/bankart-payment-gateway-diners.php:104
+#: classes/includes/bankart-payment-gateway-mcvisa.php:102
+#: classes/includes/bankart-payment-gateway-paymentcard.php:452
+msgid "Merchant prefers challange"
+msgstr ""
+
+#: classes/includes/bankart-payment-gateway-diners.php:106
+#: classes/includes/bankart-payment-gateway-mcvisa.php:104
+#: classes/includes/bankart-payment-gateway-paymentcard.php:454
+msgid "Challaenge requested: 3DS Requestor preference"
 msgstr ""
 
 #: classes/includes/bankart-payment-gateway-mcvisa.php:9

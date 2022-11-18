@@ -219,10 +219,10 @@ class WC_BankartPaymentGateway_PaymentCard extends WC_Payment_Gateway
 
                 update_post_meta( $orderId, '_bankart_instalments', $inst_num);
                 $extraData = array_merge($extraData, ["userField1" => $inst_num]);
-                $transaction->setExtraData($extraData);
             }
         }
-
+		$transaction->setExtraData($extraData);
+		
         /**
          * integration key is set -> seamless
          * if there is no token, the tokenization failed...
@@ -448,6 +448,16 @@ class WC_BankartPaymentGateway_PaymentCard extends WC_Payment_Gateway
                 'type' => 'number',
                 'description' => __('Based on this amount the maximum number of allowed instalments will be calculated', 'woocommerce-bankart-payment-gateway'),
                 'default' => '50',
+            ],
+			'force_challenge' => [
+                'title' => __('Merchant prefers challange', 'woocommerce-bankart-payment-gateway'),
+                'type' => 'select',
+                'description' => __('Challaenge requested: 3DS Requestor preference', 'woocommerce-bankart-payment-gateway'),
+				'default' => '0',
+				'options' => [
+                    '0' => __('No', 'woocommerce-bankart-payment-gateway'),
+                    '1' => __('Yes', 'woocommerce-bankart-payment-gateway'),
+				],
             ],
         ];
     }
@@ -900,7 +910,11 @@ class WC_BankartPaymentGateway_PaymentCard extends WC_Payment_Gateway
      */
     private function challengeIndicator()
     {
-        return null;
+        if( $this->get_option('force_challenge') == '1'){
+			return '03';
+		}else{
+			return null;
+		}
     }
 
     /**
