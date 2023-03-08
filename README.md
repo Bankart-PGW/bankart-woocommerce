@@ -5,6 +5,7 @@ Plugin Woocommerce should be installed and activated on WordPress prior installa
 
 ## Preinstallation
 1. Download .zip from GitHub repository. 
+1. Rename folder `bankart-magento-master` inside .zip file to `woocommerce-bankart-payment-gateway`.
 
 ## Installation
 
