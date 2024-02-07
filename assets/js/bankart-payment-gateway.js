@@ -121,7 +121,7 @@ function bankartInit($){
                 'border-radius': '3px',
                 'font-family': '"Arial", sans-serif',
                 'font-weight': 'bold',
-                'color': '#555',
+                'color': '#243F60',
                 'padding': '6px',
                 'padding-left': '8px',
                 'padding-right': '8px',                

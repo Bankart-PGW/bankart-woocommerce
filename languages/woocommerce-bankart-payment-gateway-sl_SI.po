@@ -3,7 +3,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: WooCommerce Bankart Payment Gateway Extension "
-"1.7.4.3\n"
+"3.0.1.1\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/woocommerce-"
 "bankart-payment-gateway\n"
 "Language-Team: \n"
@@ -202,6 +202,12 @@ msgstr "Do 24 obrokov"
 #: classes/includes/bankart-payment-gateway-diners.php:88
 msgid "Up to 36 instalments"
 msgstr "Do 36 obrokov"
+
+#: classes/includes/bankart-payment-gateway-diners.php:87
+#: classes/includes/bankart-payment-gateway-mcvisa.php:87
+#: classes/includes/bankart-payment-gateway-paymentcard.php:437
+msgid "Up to 60 instalments"
+msgstr "Do 60 obrokov"
 
 #: classes/includes/bankart-payment-gateway-diners.php:92
 #: classes/includes/bankart-payment-gateway-mcvisa.php:91

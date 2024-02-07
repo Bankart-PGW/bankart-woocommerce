@@ -2,10 +2,10 @@
 /**
  * Plugin Name: WooCommerce Bankart Payment Gateway Extension
  * Description: Bankart Payment Gateway for WooCommerce
- * Version: 1.7.4.3
+ * Version: 3.0.1.1
  * Author: Bankart
- * WC requires at least: 3.6.0
- * WC tested up to: 5.0.0
+ * WC requires at least: 8.0
+ * WC tested up to: 8.3.1
  * Text Domain: woocommerce-bankart-payment-gateway
  * Domain Path: /languages
  */
@@ -16,15 +16,23 @@ if (!defined('ABSPATH')) {
 define('BANKART_PAYMENT_GATEWAY_EXTENSION_URL', 'https://gateway.bankart.si/');
 #define('BANKART_PAYMENT_GATEWAY_EXTENSION_URL', 'https://bankart.paymentsandbox.cloud/');
 define('BANKART_PAYMENT_GATEWAY_EXTENSION_NAME', 'Bankart Payment Gateway');
-define('BANKART_PAYMENT_GATEWAY_EXTENSION_VERSION', '1.7.4.3');
+define('BANKART_PAYMENT_GATEWAY_EXTENSION_VERSION', '3.0.1.1');
 define('BANKART_PAYMENT_GATEWAY_EXTENSION_UID_PREFIX', 'bankart_payment_gateway_');
 define('BANKART_PAYMENT_GATEWAY_EXTENSION_BASEDIR', plugin_dir_path(__FILE__));
+
+#For HPOS
+add_action('before_woocommerce_init', function(){
+    if ( class_exists( \Automattic\WooCommerce\Utilities\FeaturesUtil::class ) ) {
+        \Automattic\WooCommerce\Utilities\FeaturesUtil::declare_compatibility( 'custom_order_tables', __FILE__, true );
+    }
+});
 
 add_action('plugins_loaded', function () {
     require_once BANKART_PAYMENT_GATEWAY_EXTENSION_BASEDIR . 'classes/includes/bankart-payment-gateway-provider.php';
     require_once BANKART_PAYMENT_GATEWAY_EXTENSION_BASEDIR . 'classes/includes/bankart-payment-gateway-paymentcard.php';
     require_once BANKART_PAYMENT_GATEWAY_EXTENSION_BASEDIR . 'classes/includes/bankart-payment-gateway-mcvisa.php';
     require_once BANKART_PAYMENT_GATEWAY_EXTENSION_BASEDIR . 'classes/includes/bankart-payment-gateway-diners.php';
+    require_once BANKART_PAYMENT_GATEWAY_EXTENSION_BASEDIR . 'classes/includes/bankart-payment-gateway-flik.php';
 
     load_plugin_textdomain('woocommerce-bankart-payment-gateway', FALSE, basename(BANKART_PAYMENT_GATEWAY_EXTENSION_BASEDIR) . '/languages');
 

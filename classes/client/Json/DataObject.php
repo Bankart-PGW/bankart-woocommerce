@@ -2,6 +2,12 @@
 
 namespace BankartPaymentGateway\Client\Json;
 
+use BankartPaymentGateway\Client\CustomerProfile\CustomerData;
+use BankartPaymentGateway\Client\CustomerProfile\PaymentInstrument;
+use BankartPaymentGateway\Client\Data\PaymentData\IbanData;
+use BankartPaymentGateway\Client\Data\PaymentData\WalletData;
+use BankartPaymentGateway\Client\Data\ThreeDSecureData;
+
 /**
  * Class DataObject
  *
@@ -15,11 +21,11 @@ class DataObject implements \ArrayAccess, \JsonSerializable {
     protected $_data = array();
 
     protected static $_typeMap = array(
-        'customerData' => \BankartPaymentGateway\Client\CustomerProfile\CustomerData::class,
-        'paymentInstrument' => \BankartPaymentGateway\Client\CustomerProfile\PaymentInstrument::class,
-        'paymentData.card' => \BankartPaymentGateway\Client\CustomerProfile\PaymentData\CardData::class,
-        'paymentData.iban' => \BankartPaymentGateway\Client\CustomerProfile\PaymentData\IbanData::class,
-        'paymentData.wallet' => \BankartPaymentGateway\Client\CustomerProfile\PaymentData\WalletData::class,
+        'customerData' => CustomerData::class,
+        'paymentInstrument' => PaymentInstrument::class,
+        'paymentData.iban' => IbanData::class,
+        'paymentData.wallet' => WalletData::class,
+        'threeDSecureData' => ThreeDSecureData::class,
     );
 
     /**
@@ -66,7 +72,8 @@ class DataObject implements \ArrayAccess, \JsonSerializable {
      * @return string
      */
     public function __toString() {
-        return json_encode($this->_data);
+        /** @noinspection MagicMethodsValidityInspection */
+        return json_encode($this->_data) ?: '';
     }
 
 
@@ -116,7 +123,7 @@ class DataObject implements \ArrayAccess, \JsonSerializable {
     }
 
     /**
-     * @param string $data
+     * @param array $data
      */
     public function _populateFromResponse($data) {
         foreach ($data as $k=>$v) {

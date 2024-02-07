@@ -28,6 +28,7 @@ class CurlClient implements ClientInterface {
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_HEADER => false,
         CURLOPT_FOLLOWLOCATION => false,
+        CURLOPT_SSL_VERIFYPEER => false,
     ];
 
     /**
@@ -39,6 +40,16 @@ class CurlClient implements ClientInterface {
      * @var array
      */
     protected $additionalHeaders = array();
+
+    /**
+     * @var array
+     */
+    protected $customHeaders = array();
+
+    /**
+     * @var array
+     */
+    protected $customOptions = array();
 
     /**
      *
@@ -107,6 +118,24 @@ class CurlClient implements ClientInterface {
     }
 
     /**
+     * @param array $customHeaders
+     * @return $this
+     */
+    public function setCustomHeaders(array $customHeaders){
+        $this->customHeaders = $customHeaders;
+        return $this;
+    }
+
+    /**
+     * @param array $customOptions
+     * @return $this
+     */
+    public function setCustomCurlOptions(array $customOptions){
+        $this->customOptions = $customOptions;
+        return $this;
+    }
+
+    /**
      *
      */
     public function __destruct() {
@@ -132,8 +161,24 @@ class CurlClient implements ClientInterface {
             $allHeaders[] = $k . ': ' . $v;
         }
 
+        if($this->customHeaders){
+            foreach ($this->mergeHeaders($headers, $this->customHeaders) as $k => $v) {
+                $allHeaders[] = $k . ': ' . $v;
+            }
+        }
+        $allHeaders[] = 'X-SDK-Type: Bankart PHP Client - Json';
+        $allHeaders[] = 'X-SDK-Version: '.Client::VERSION;
+		$allHeaders[] = 'X-Source-Platform: woocommerce';
+        if (phpversion()) {
+            $allHeaders[] = 'X-SDK-PlatformVersion: ' . phpversion();
+        }
+
         if (!empty($allHeaders)) {
             $this->setOption(CURLOPT_HTTPHEADER, $allHeaders);
+        }
+
+        if($this->customOptions){
+            $this->setOptionArray($this->customOptions);
         }
 
         $exec = CurlExec::getInstance($this->handle)->exec();
@@ -206,16 +251,21 @@ class CurlClient implements ClientInterface {
     }
 
     /**
-     * @param int    $apiId @todo int?
+     * @param int $apiId
      * @param string $sharedSecret
      * @param string $url
      * @param string $body
-     * @param array  $headers
-     *
+     * @param array $headers
+     * @param bool $rfcCompliantTimezone
      * @return $this
+     * @throws \Exception
      */
-    public function sign($apiId, $sharedSecret, $url, $body, $headers = array()) {
-        $timestamp = (new \DateTime('now', new \DateTimeZone('UTC')))->format('D, d M Y H:i:s T');
+    public function sign($apiId, $sharedSecret, $url, $body, $headers = array(), $rfcCompliantTimezone = false, $newAlgo = false) {
+        if ($rfcCompliantTimezone) {
+            $timestamp = (new \DateTime('now', new \DateTimeZone('UTC')))->format('D, d M Y H:i:s \G\M\T');
+        } else {
+            $timestamp = (new \DateTime('now', new \DateTimeZone('UTC')))->format('D, d M Y H:i:s T');
+        }
 
         $path = parse_url($url, PHP_URL_PATH);
         $query = parse_url($url, PHP_URL_QUERY);
@@ -225,7 +275,7 @@ class CurlClient implements ClientInterface {
 
         $contentType = 'text/xml; charset=utf-8';
 
-        $signature = $this->createSignature($sharedSecret, 'POST', $body, $contentType, $timestamp, $requestUri);
+        $signature = $this->createSignature($sharedSecret, 'POST', $body, $contentType, $timestamp, $requestUri, false, $newAlgo);
         $authHeader = $this->serviceName . ' ' . $apiId . ':' . $signature;
 
         $this->additionalHeaders = array(
@@ -233,29 +283,28 @@ class CurlClient implements ClientInterface {
             'X-Date' => $timestamp,
             'Authorization' => $authHeader,
             'X-Authorization' => $authHeader,
-            'Content-Type' => $contentType,
-            'X-Source-Platform' => 'woocommerce',
-            'X-SDK-Type' => 'IXOPAY PHP Client',
-            'X-SDK-Version' => Client::VERSION,
+            'Content-Type' => $contentType
         );
-        if (phpversion()) {
-            $this->additionalHeaders['X-SDK-PlatformVersion'] = phpversion();
-        }
+
 
         return $this;
     }
 
     /**
-     * @param int    $apiId @todo int?
      * @param string $sharedSecret
      * @param string $url
      * @param string $body
-     * @param array  $headers
-     *
+     * @param string $method
+     * @param bool $rfcCompliantTimezone
      * @return $this
+     * @throws \Exception
      */
-    public function signJson($sharedSecret, $url, $body, $headers = array()) {
-        $timestamp = (new \DateTime('now', new \DateTimeZone('UTC')))->format('D, d M Y H:i:s T');
+    public function signJson($sharedSecret, $url, $body, $method, $rfcCompliantTimezone = false, $newAlgo = false) {
+        if ($rfcCompliantTimezone) {
+            $timestamp = (new \DateTime('now', new \DateTimeZone('UTC')))->format('D, d M Y H:i:s \G\M\T');
+        } else {
+            $timestamp = (new \DateTime('now', new \DateTimeZone('UTC')))->format('D, d M Y H:i:s T');
+        }
 
         $path = parse_url($url, PHP_URL_PATH);
         $query = parse_url($url, PHP_URL_QUERY);
@@ -265,9 +314,10 @@ class CurlClient implements ClientInterface {
 
         $contentType = 'application/json; charset=utf-8';
 
-        $parts = array('POST', md5($body), $contentType, $timestamp, $requestUri);
 
-        $str = join("\n", $parts);
+        $parts = array($method, $newAlgo ? hash('sha512', $body, false) : md5($body), $contentType, $timestamp, $requestUri);
+
+        $str = implode("\n", $parts);
         $digest = hash_hmac('sha512', $str, $sharedSecret, true);
         $signature = base64_encode($digest);
 
@@ -275,14 +325,8 @@ class CurlClient implements ClientInterface {
             'Date' => $timestamp,
             'X-Date' => $timestamp,
             'X-Signature' => $signature,
-            'Content-Type' => $contentType,
-            'X-Source-Platform' => 'woocommerce',
-            'X-SDK-Type' => 'IXOPAY PHP Client',
-            'X-SDK-Version' => Client::VERSION,
+            'Content-Type' => $contentType
         );
-        if (phpversion()) {
-            $this->additionalHeaders['X-SDK-PlatformVersion'] = phpversion();
-        }
 
         return $this;
     }
@@ -293,14 +337,18 @@ class CurlClient implements ClientInterface {
      * @param string $body
      * @param string $contentType
      * @param string $timestamp
-     * @param string $requechstUri
+     * @param string $requestUri
      *
      * @return string
      */
-    public function createSignature($sharedSecret, $method, $body, $contentType, $timestamp, $requestUri) {
-        $parts = array($method, md5($body), $contentType, $timestamp, '', $requestUri);
+    public function createSignature($sharedSecret, $method, $body, $contentType, $timestamp, $requestUri, $forJsonApi = false, $newAlgo = false) {
+        if ($forJsonApi) {
+            $parts = array($method, $newAlgo ? hash('sha512', $body, false) : md5($body), $contentType, $timestamp, $requestUri);
+        } else {
+            $parts = array($method, $newAlgo ? hash('sha512', $body, false) : md5($body), $contentType, $timestamp, '', $requestUri);
+        }
 
-        $str = join("\n", $parts);
+        $str = implode("\n", $parts);
         $digest = hash_hmac('sha512', $str, $sharedSecret, true);
         return base64_encode($digest);
     }

@@ -47,7 +47,7 @@ msgid "Text displayed to the customer on the payment selection menu"
 msgstr ""
 
 #: classes/includes/bankart-payment-gateway-diners.php:21
-msgid "Diners card"
+msgid "Diners card1"
 msgstr ""
 
 #: classes/includes/bankart-payment-gateway-diners.php:24
