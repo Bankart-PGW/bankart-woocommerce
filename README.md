@@ -21,8 +21,8 @@ Plugin Woocommerce should be installed and activated on WordPress prior installa
 
 1. Go to `Woocommerce` > `Settings` in your shop's admin area.
 1. Select category `Payments`.
-1. Enable one or more Credit Card options: `Payment cards - Payment card`,`Payment cards - Maestro/Mastercard/VISA`,`Payment cards - Diners` based on your requirements.
-1. For setup individual Credit Card options click on `Manage` 
+1. Enable one or more Credit Card or Flik options: `Payment cards - Payment card`,`Payment cards - Maestro/Mastercard/VISA`,`Payment cards - Diners`, `Payment cards - Flik` based on your requirements.
+1. For setup individual Credit Card\Flik options click on `Manage` 
     1. You can change a `Title` at payment method.
     1. Enter credentials.
 	1. Set `Transaction typ`.
