@@ -1,5 +1,6 @@
 <?php
 
+use BankartPaymentGateway\Client\Client;
 class WC_BankartPaymentGateway_PaymentCard extends WC_Payment_Gateway
 {
     public $id = 'payment_cards';
@@ -29,7 +30,7 @@ class WC_BankartPaymentGateway_PaymentCard extends WC_Payment_Gateway
     public function __construct()
     {
         $this->id = BANKART_PAYMENT_GATEWAY_EXTENSION_UID_PREFIX . $this->id;
-
+        
         $this->has_fields = is_checkout_pay_page();
 
         $this->init_form_fields();
@@ -117,7 +118,6 @@ class WC_BankartPaymentGateway_PaymentCard extends WC_Payment_Gateway
     public function process_payment($orderId)
     {
         // sets order status to pending payment
-
         $this->order = new WC_Order($orderId);
         $this->order->update_status('pending', __('Awaiting payment', 'woocommerce-bankart-payment-gateway'));
 
@@ -132,7 +132,6 @@ class WC_BankartPaymentGateway_PaymentCard extends WC_Payment_Gateway
          * order & user
          */
         $this->user = $this->order->get_user();
-
         /**
          * gateway client
          */
@@ -150,40 +149,45 @@ class WC_BankartPaymentGateway_PaymentCard extends WC_Payment_Gateway
          */
         $customer = new BankartPaymentGateway\Client\Data\Customer();
         $customer
-            ->setBillingAddress1($this->order->get_billing_address_1())
+            ->setBillingAddress1(substr($this->order->get_billing_address_1(),0,50))
             ->setBillingAddress2($this->order->get_billing_address_2())
             ->setBillingCity($this->order->get_billing_city())
             ->setBillingCountry($this->order->get_billing_country())
             ->setBillingPhone($this->order->get_billing_phone())
             ->setBillingPostcode($this->order->get_billing_postcode())
-            ->setBillingState($this->order->get_billing_state())
+            //->setBillingState($this->order->get_billing_state())
             ->setCompany($this->order->get_billing_company())
             ->setEmail($this->order->get_billing_email())
             ->setFirstName($this->order->get_billing_first_name())
             ->setIpAddress(WC_Geolocation::get_ip_address()) // $this->order->get_customer_ip_address()
             ->setLastName($this->order->get_billing_last_name());
-
         /**
          * add shipping data for non-digital goods
          */
         if ($this->order->get_shipping_country()) {
             $customer
-                ->setShippingAddress1($this->order->get_shipping_address_1())
+                ->setShippingAddress1(substr($this->order->get_shipping_address_1(),0,50))
                 ->setShippingAddress2($this->order->get_shipping_address_2())
                 ->setShippingCity($this->order->get_shipping_city())
                 ->setShippingCompany($this->order->get_shipping_company())
                 ->setShippingCountry($this->order->get_shipping_country())
                 ->setShippingFirstName($this->order->get_shipping_first_name())
                 ->setShippingLastName($this->order->get_shipping_last_name())
-                ->setShippingPostcode($this->order->get_shipping_postcode())
-                ->setShippingState($this->order->get_shipping_state());
+                ->setShippingPostcode($this->order->get_shipping_postcode());
+                //->setShippingState($this->order->get_shipping_state());
+                
+            if ($this->order->get_shipping_postcode()) {
+                $customer->setShippingPostcode($this->order->get_shipping_postcode());
+            } else {
+                $customer->setShippingPostcode('n/a');
+            }
         }
 
         /**
          * transaction
          */
         $transactionRequest = $this->get_option('transactionRequest');
-        $transaction = null;
+		$transaction = null;
         switch ($transactionRequest) {
             case 'debit':
                 $transaction = new \BankartPaymentGateway\Client\Transaction\Debit();
@@ -193,13 +197,12 @@ class WC_BankartPaymentGateway_PaymentCard extends WC_Payment_Gateway
                 $transaction = new \BankartPaymentGateway\Client\Transaction\Preauthorize();
                 break;
         }
-
         $orderTxId = $this->encodeOrderId($orderId);
         // keep track of last tx id 
         $this->order->add_meta_data('_orderTxId', $orderTxId, true); 
         $this->order->save_meta_data();
 
-        $transaction->setTransactionId($orderTxId)
+		$transaction->setMerchantTransactionId($orderTxId)
                     ->setAmount(floatval($this->order->get_total()))
                     ->setCurrency($this->order->get_currency())
                     ->setCustomer($customer)
@@ -207,21 +210,115 @@ class WC_BankartPaymentGateway_PaymentCard extends WC_Payment_Gateway
                     ->setCancelUrl(wc_get_checkout_url())
                     ->setSuccessUrl($this->paymentSuccessUrl($this->order))
                     ->setErrorUrl(add_query_arg(['gateway_return_result' => 'error'], $this->get_option('integrationKey') ? $this->order->get_checkout_payment_url(false) : wc_get_checkout_url()));
+        
+		//Set the 3DS object
+		$threeDSdata = new \BankartPaymentGateway\Client\Data\ThreeDSecureData();
+		
+		/**
+		 * challengeIndicator
+		 * Indicates whether a challenge is requested for this transaction. For example: For 01-PA, a 3DS Requestor may have concerns about the transaction, and request a challenge.
+		 * 01 -> No preference
+		 * 02 -> No challenge requested
+		 * 03 -> Challenge requested: 3DS Requestor Preference
+		 * 04 -> Challenge requested: Mandate
+		 */
+		if( $this->get_option('force_challenge') == '1'){
+				$threeDSdata->setChallengeIndicator('03');
+		}
+		
+		/**
+		 * browserChallengeWindowSize
+		 * Dimensions of the challenge window that has been displayed to the Cardholder. 
+		 * The ACS shall reply with content that is formatted to appropriately render in this window to provide the best possible user experience.
+		 * 01 -> 250 x 400
+		 * 02 -> 390 x 400
+		 * 03 -> 500 x 600
+		 * 04 -> 600 x 400
+		 * 05 -> Full screen
+		 */
+		$threeDSdata->setBrowserChallengeWindowSize('05');
+		
+		/**
+		 * cardholderAccountDate
+		 * Date that the cardholder opened the account with the 3DS Requestor. Format: YYYY-MM-DD
+		 * Example: 2019-05-12
+		 */
+		if ($this->user){ 
+			$threeDSdata->setCardholderAccountDate($this->user->user_registered ? (new DateTime($this->user->user_registered))->format('Y-m-d') : null);
+		}
+		
+		/**
+		 * cardholderAccountLastChange
+		 * Date that the cardholder’s account with the 3DS Requestor was last changed. Including Billing or Shipping address, new payment account, or new user(s) added. Format: YYYY-MM-DD
+		 * Example: 2019-05-12
+		*/
+        if ($this->user) {
+            $lastUpdate = get_user_meta($this->user->ID, 'last_update', true);
 
-        $extraData = $this->extraData3DS();
+			$threeDSdata->setCardholderAccountLastChange($lastUpdate ? (new DateTime('@' . $lastUpdate))->format('Y-m-d') : null);
+        }
 
+		/**
+		 * purchaseCountSixMonths
+		 * Number of purchases with this cardholder account during the previous six months.
+		 *
+		 */
+		if ($this->user) { 
+			$count = 0;
+			foreach (['processing', 'completed', 'refunded', 'cancelled', 'authorization'] as $status) {
+				$orders = wc_get_orders([
+					'customer' => $this->user->ID,
+					'limit' => -1,
+					'status' => $status,
+					'date_after' => '6 months ago',
+				]);
+				$count += count($orders);
+			}
+			$threeDSdata->setPurchaseCountSixMonths($count);
+		}
+    
+		/**
+		 * shippingAddressFirstUsage
+		 * Date when the shipping address used for this transaction was first used with the 3DS Requestor. Format: YYYY-MM-DD
+		 * Example: 2019-05-12
+		 */
+		if ($this->user) {
+			$orders = wc_get_orders([
+				'customer' => $this->user->ID,
+				'shipping_address_1' => $this->order->get_shipping_address_1(),
+				'orderby' => 'date',
+				'order' => 'ASC',
+				'limit' => 1,
+				'paginate' => false,
+			]);
+
+			/** @var WC_Order $firstOrder */
+			$firstOrder = reset($orders);
+			$firstOrderDate = $firstOrder && $firstOrder->get_date_created() ? $firstOrder->get_date_created() : new WC_DateTime();
+			$threeDSdata->setShippingAddressFirstUsage($firstOrderDate->format('Y-m-d'));			 
+		}
+		
+		$transaction->setThreeDSecureData($threeDSdata);
+		
+		
         // instalments - 2nd condition is reduntant, but play it safe and check the admin settings
         if (!empty( $_POST[$this->id . '-instalments'])) {
 
             $inst_num = sanitize_text_field($_POST[$this->id . '-instalments']);
 
             if (!in_array($inst_num, ['', '00', '0', '01', '1']) && $inst_num <= $this->get_max_instalments()) {
-
-                update_post_meta( $orderId, '_bankart_instalments', $inst_num);
-                $extraData = array_merge($extraData, ["userField1" => $inst_num]);
-            }
+                #HPOS
+				#instead
+				#update_post_meta( $orderId, '_bankart_instalments', $inst_num);
+				$order = wc_get_order($orderId);
+				$order->update_meta_data('_bankart_instalments', $inst_num);
+				$order->save();
+				#END HPOS
+				
+				$transaction->addExtraData('userField1', $inst_num);
+			}
         }
-		$transaction->setExtraData($extraData);
+        $transaction->addExtraData('platform', Client::PLATFORM);
 		
         /**
          * integration key is set -> seamless
@@ -244,32 +341,33 @@ class WC_BankartPaymentGateway_PaymentCard extends WC_Payment_Gateway
                 $result = $client->preauthorize($transaction);
                 break;
         }
-        
         if ($result->getReturnType() == BankartPaymentGateway\Client\Transaction\Result::RETURN_TYPE_ERROR) {
-            $error = $result->getFirstError();
+			$error = $result->getFirstError();
 
-            $this->log->add($this->id, 'Order ID: ' . $orderId . ' Error: ' . $error->getMessage());
-
+            $this->log->add($this->id, 'Order ID: ' . $orderId . ' Error1: ' . $error->getMessage());
+			
             return $this->paymentFailedResponse();
         }
 
 
-        if ($result->isSuccess()) {       
+        if ($result->isSuccess()) {
             if ($result->getReturnType() == BankartPaymentGateway\Client\Transaction\Result::RETURN_TYPE_REDIRECT) {
-                return [
+				return [
                     'result' => 'success',
                     'redirect' => $result->getRedirectUrl(),
                 ];
             } 
 
             WC()->cart->empty_cart();
-
             return [
                 'result' => 'success',
                 'redirect' => $this->paymentSuccessUrl($this->order),
             ];
-        }
-
+        } else{
+			$error = $result->getFirstError();
+            $this->log->add($this->id, 'Order ID: ' . $orderId . ' Error2: ' . $error->getMessage());
+            return $this->paymentFailedResponse();
+		}
         /**
          * something went wrong
          */
@@ -295,7 +393,6 @@ class WC_BankartPaymentGateway_PaymentCard extends WC_Payment_Gateway
     public function process_callback()
     {
         WC_BankartPaymentGateway_Provider::autoloadClient();
-
         BankartPaymentGateway\Client\Client::setApiUrl(BANKART_PAYMENT_GATEWAY_EXTENSION_URL);
         $client = new BankartPaymentGateway\Client\Client(
             $this->get_option('apiUser'),
@@ -303,41 +400,58 @@ class WC_BankartPaymentGateway_PaymentCard extends WC_Payment_Gateway
             $this->get_option('apiKey'),
             $this->get_option('sharedSecret')
         );
-
-        if (!$client->validateCallbackWithGlobals()) {
+	/*	if (!$client->validateCallbackWithGlobals()) {
             if (!headers_sent()) {
                 http_response_code(400);
             }
-            die("OK");
-        }        
-        
+            die("NOK");
+        }
+    */    
         $callbackResult = $client->readCallback(file_get_contents('php://input'));
-        $this->order = new WC_Order($this->decodeOrderId($callbackResult->getTransactionId()));
-
-        
+        $this->order = new WC_Order($this->decodeOrderId($callbackResult->getMerchantTransactionId()));
+        //new
+        $callbackUuid = $callbackResult->getUuid();
+        $merchantTransactionId = $callbackResult->getMerchantTransactionId();
+        //end new
         if ($callbackResult->getResult() == \BankartPaymentGateway\Client\Callback\Result::RESULT_OK) {
             switch ($callbackResult->getTransactionType()) {
                 case \BankartPaymentGateway\Client\Callback\Result::TYPE_DEBIT:
                     // check if callback data is coming from the last (=newest+relevant) tx attempt, otherwise ignore it
-                    if ($this->order->get_meta('_orderTxId') == $callbackResult->getTransactionId()) {
-                        $this->order->payment_complete($callbackResult->getReferenceId());
+                    /*if ($this->order->get_meta('_orderTxId') == $callbackResult->getMerchantTransactionId()) {
+						$this->order->payment_complete($callbackResult->getUuid());
+                    }*/
+                    //new
+                    if ($this->order->get_meta('_orderTxId') == $callbackResult->getMerchantTransactionId()) {
+                        if ($this->order->get_meta('_orderTxId') == $merchantTransactionId) {
+                            // Update the UUID meta data
+                            $this->order->update_meta_data('_orderTxId', $callbackUuid);
+                            $this->order->save_meta_data();
+                            
+                            // Complete the payment
+                            $this->order->payment_complete($callbackUuid);
+                        }
                     }
+                    //end new
                     break;
                 case \BankartPaymentGateway\Client\Callback\Result::TYPE_PREAUTHORIZE:
                     // check if callback data is coming from the last (=newest+relevant) tx attempt, otherwise ignore it
-                    if ($this->order->get_meta('_orderTxId') == $callbackResult->getTransactionId()) {
-                        $preauthorizeStatus = $this->get_option('preauthorizeSuccess');
-                        $this->order->set_status($preauthorizeStatus, __('Payment authorized. Awaiting capture/void.', 'woocommerce-bankart-payment-gateway'));
-                        $this->order->set_transaction_id($callbackResult->getReferenceId());
-                        $this->order->save();
+                    if ($this->order->get_meta('_orderTxId') == $callbackResult->getMerchantTransactionId()) {
+                        if ($this->order->get_meta('_orderTxId') == $merchantTransactionId) {
+                            $this->order->update_meta_data('_orderTxId', $callbackUuid);
+                            $this->order->save_meta_data();
+                            $preauthorizeStatus = $this->get_option('preauthorizeSuccess');
+                            $this->order->set_status($preauthorizeStatus, __('Payment authorized. Awaiting capture/void.', 'woocommerce-bankart-payment-gateway'));
+                            $this->order->set_transaction_id($callbackResult->getUuid());
+                            $this->order->save();
+                        }
                     }
                     break;
                 case \BankartPaymentGateway\Client\Callback\Result::TYPE_CAPTURE:
-                    $this->order->payment_complete($callbackResult->getReferenceId());
+                    $this->order->payment_complete($callbackResult->getUuid());
                     break;
                 case \BankartPaymentGateway\Client\Callback\Result::TYPE_VOID:
                     $this->order->set_status('cancelled', __('Payment voided', 'woocommerce-bankart-payment-gateway'));
-                    $this->order->set_transaction_id($callbackResult->getReferenceId());
+                    $this->order->set_transaction_id($callbackResult->getUuid());
                     $this->order->save();
                     break;
             }
@@ -345,8 +459,8 @@ class WC_BankartPaymentGateway_PaymentCard extends WC_Payment_Gateway
             $error = $callbackResult->getFirstError();
             if ($error->getCode() != \BankartPaymentGateway\Client\Transaction\Error::TRANSACTION_EXPIRED) {
                 $this->order->set_status('failed', __('Error', 'woocommerce-bankart-payment-gateway'));
-                if(null !== $callbackResult->getReferenceId()) {
-                    $this->order->set_transaction_id($callbackResult->getReferenceId());
+                if(null !== $callbackResult->getUuid()) {
+                    $this->order->set_transaction_id($callbackResult->getUuid());
                 }
                 $this->order->save();
             }
@@ -430,11 +544,13 @@ class WC_BankartPaymentGateway_PaymentCard extends WC_Payment_Gateway
                 'title' => __('Installments', 'woocommerce-bankart-payment-gateway'),
                 'type' => 'select',
                 'description' => __('Select the option based on the agreement with your acquiring bank', 'woocommerce-bankart-payment-gateway'),
-                'default' => '12',
+                'default' => '1',
                 'options' => [
                     '1' => __('Instalments disabled', 'woocommerce-bankart-payment-gateway'),
                     '12' => __('Up to 12 instalments', 'woocommerce-bankart-payment-gateway'),
                     '24' => __('Up to 24 instalments', 'woocommerce-bankart-payment-gateway'),
+					'36' => __('Up to 36 instalments', 'woocommerce-bankart-payment-gateway'),
+					'60' => __('Up to 60 instalments', 'woocommerce-bankart-payment-gateway'),
                 ],
             ],
             'instalments-description' => [
@@ -442,6 +558,7 @@ class WC_BankartPaymentGateway_PaymentCard extends WC_Payment_Gateway
                 'type' => 'textarea',
                 'description' => __('Description of the instalments option displayed to the customer', 'woocommerce-bankart-payment-gateway'),
                 'default' => __('Select the number of instalments, if your payment card supports selecting instalments at the point of sale', 'woocommerce-bankart-payment-gateway'),
+                'default'     => '50',
             ],
             'min_instalment' => [
                 'title' => __('Minimum instalment amount', 'woocommerce-bankart-payment-gateway'),
@@ -462,6 +579,8 @@ class WC_BankartPaymentGateway_PaymentCard extends WC_Payment_Gateway
         ];
     }
 
+
+    //NEW END 
     // for custom validation for certain fields
     public function validate_text_field( $key, $value ) {
 		if(in_array($key, array('apiUser', 'apiPassword', 'apiKey', 'sharedSecret', 'integrationKey'))) {
@@ -594,788 +713,5 @@ class WC_BankartPaymentGateway_PaymentCard extends WC_Payment_Gateway
                 echo '<br>'. wpautop(wptexturize($this->get_option('instalments-description'))) . '<select type="text" name="' . $this->id . '-instalments">' . $this->get_instalments_select($max_instalments) . '</select>';
             }
         }
-    }
-    /**
-     * @throws Exception
-     * @return array
-     */
-    private function extraData3DS()
-    {
-        $extraData = [
-            /**
-             * Browser 3ds data injected by payment.js
-             */
-            // 3ds:browserAcceptHeader
-            // 3ds:browserIpAddress
-            // 3ds:browserJavaEnabled
-            // 3ds:browserLanguage
-            // 3ds:browserColorDepth
-            // 3ds:browserScreenHeight
-            // 3ds:browserScreenWidth
-            // 3ds:browserTimezone
-            // 3ds:browserUserAgent
-
-            /**
-             * force 3ds flow
-             */
-            // '3dsecure' => 'mandatory',
-
-            /**
-             * Additional 3ds 2.0 data
-             */
-            '3ds:addCardAttemptsDay' => $this->addCardAttemptsDay(),
-            '3ds:authenticationIndicator' => $this->authenticationIndicator(),
-            '3ds:billingAddressLine3' => $this->billingAddressLine3(),
-            '3ds:billingShippingAddressMatch' => $this->billingShippingAddressMatch(),
-            '3ds:browserChallengeWindowSize' => $this->browserChallengeWindowSize(),
-            '3ds:cardholderAccountAgeIndicator' => $this->cardholderAccountAgeIndicator(),
-            '3ds:cardHolderAccountChangeIndicator' => $this->cardHolderAccountChangeIndicator(),
-            '3ds:cardholderAccountDate' => $this->cardholderAccountDate(),
-            '3ds:cardholderAccountLastChange' => $this->cardholderAccountLastChange(),
-            '3ds:cardholderAccountLastPasswordChange' => $this->cardholderAccountLastPasswordChange(),
-            '3ds:cardholderAccountPasswordChangeIndicator' => $this->cardholderAccountPasswordChangeIndicator(),
-            '3ds:cardholderAccountType' => $this->cardholderAccountType(),
-            '3ds:cardHolderAuthenticationData' => $this->cardHolderAuthenticationData(),
-            '3ds:cardholderAuthenticationDateTime' => $this->cardholderAuthenticationDateTime(),
-            '3ds:cardholderAuthenticationMethod' => $this->cardholderAuthenticationMethod(),
-            '3ds:challengeIndicator' => $this->challengeIndicator(),
-            '3ds:channel' => $this->channel(),
-            '3ds:deliveryEmailAddress' => $this->deliveryEmailAddress(),
-            '3ds:deliveryTimeframe' => $this->deliveryTimeframe(),
-            '3ds:giftCardAmount' => $this->giftCardAmount(),
-            '3ds:giftCardCount' => $this->giftCardCount(),
-            '3ds:giftCardCurrency' => $this->giftCardCurrency(),
-            '3ds:homePhoneCountryPrefix' => $this->homePhoneCountryPrefix(),
-            '3ds:homePhoneNumber' => $this->homePhoneNumber(),
-            '3ds:mobilePhoneCountryPrefix' => $this->mobilePhoneCountryPrefix(),
-            '3ds:mobilePhoneNumber' => $this->mobilePhoneNumber(),
-            '3ds:paymentAccountAgeDate' => $this->paymentAccountAgeDate(),
-            '3ds:paymentAccountAgeIndicator' => $this->paymentAccountAgeIndicator(),
-            '3ds:preOrderDate' => $this->preOrderDate(),
-            '3ds:preOrderPurchaseIndicator' => $this->preOrderPurchaseIndicator(),
-            '3ds:priorAuthenticationData' => $this->priorAuthenticationData(),
-            '3ds:priorAuthenticationDateTime' => $this->priorAuthenticationDateTime(),
-            '3ds:priorAuthenticationMethod' => $this->priorAuthenticationMethod(),
-            '3ds:priorReference' => $this->priorReference(),
-            '3ds:purchaseCountSixMonths' => $this->purchaseCountSixMonths(),
-            '3ds:purchaseDate' => $this->purchaseDate(),
-            '3ds:purchaseInstalData' => $this->purchaseInstalData(),
-            '3ds:recurringExpiry' => $this->recurringExpiry(),
-            '3ds:recurringFrequency' => $this->recurringFrequency(),
-            '3ds:reorderItemsIndicator' => $this->reorderItemsIndicator(),
-            '3ds:shipIndicator' => $this->shipIndicator(),
-            '3ds:shippingAddressFirstUsage' => $this->shippingAddressFirstUsage(),
-            '3ds:shippingAddressLine3' => $this->shippingAddressLine3(),
-            '3ds:shippingAddressUsageIndicator' => $this->shippingAddressUsageIndicator(),
-            '3ds:shippingNameEqualIndicator' => $this->shippingNameEqualIndicator(),
-            '3ds:suspiciousAccountActivityIndicator' => $this->suspiciousAccountActivityIndicator(),
-            '3ds:transactionActivityDay' => $this->transactionActivityDay(),
-            '3ds:transactionActivityYear' => $this->transactionActivityYear(),
-            '3ds:transType' => $this->transType(),
-            '3ds:workPhoneCountryPrefix' => $this->workPhoneCountryPrefix(),
-            '3ds:workPhoneNumber' => $this->workPhoneNumber(),
-        ];
-
-        return array_filter($extraData, function ($data) {
-            return $data !== null;
-        });
-    }
-
-    /**
-     * 3ds:addCardAttemptsDay
-     * Number of Add Card attempts in the last 24 hours.
-     *
-     * @return int|null
-     */
-    private function addCardAttemptsDay()
-    {
-        return null;
-    }
-
-    /**
-     * 3ds:authenticationIndicator
-     * Indicates the type of Authentication request. This data element provides additional information to the ACS to determine the best approach for handling an authentication request.
-     * 01 -> Payment transaction
-     * 02 -> Recurring transaction
-     * 03 -> Installment transaction
-     * 04 -> Add card
-     * 05 -> Maintain card
-     * 06 -> Cardholder verification as part of EMV token ID&V
-     *
-     * @return string|null
-     */
-    private function authenticationIndicator()
-    {
-        return null;
-    }
-
-    /**
-     * 3ds:billingAddressLine3
-     * Line 3 of customer's billing address
-     *
-     * @return string|null
-     */
-    private function billingAddressLine3()
-    {
-        return null;
-    }
-
-    /**
-     * 3ds:billingShippingAddressMatch
-     * Indicates whether the Cardholder Shipping Address and Cardholder Billing Address are the same.
-     * Y -> Shipping Address matches Billing Address
-     * N -> Shipping Address does not match Billing Address
-     *
-     * @return string|null
-     */
-    private function billingShippingAddressMatch()
-    {
-        return null;
-    }
-
-    /**
-     * 3ds:browserChallengeWindowSize
-     * Dimensions of the challenge window that has been displayed to the Cardholder. The ACS shall reply with content that is formatted to appropriately render in this window to provide the best possible user experience.
-     * 01 -> 250 x 400
-     * 02 -> 390 x 400
-     * 03 -> 500 x 600
-     * 04 -> 600 x 400
-     * 05 -> Full screen
-     *
-     * @return string|null
-     */
-    private function browserChallengeWindowSize()
-    {
-        return '05';
-    }
-
-    /**
-     * 3ds:cardholderAccountAgeIndicator
-     * Length of time that the cardholder has had the account with the 3DS Requestor.
-     * 01 -> No account (guest check-out)
-     * 02 -> During this transaction
-     * 03 -> Less than 30 days
-     * 04 -> 30 - 60 days
-     * 05 -> More than 60 days
-     *
-     * @return string|null
-     */
-    private function cardholderAccountAgeIndicator()
-    {
-        return null;
-    }
-
-    /**
-     * 3ds:cardHolderAccountChangeIndicator
-     * Length of time since the cardholder’s account information with the 3DS Requestor waslast changed. Includes Billing or Shipping address, new payment account, or new user(s) added.
-     * 01 -> Changed during this transaction
-     * 02 -> Less than 30 days
-     * 03 -> 30 - 60 days
-     * 04 -> More than 60 days
-     *
-     * @return string|null
-     */
-    private function cardHolderAccountChangeIndicator()
-    {
-        return null;
-    }
-
-    /**
-     * Date that the cardholder opened the account with the 3DS Requestor. Format: YYYY-MM-DD
-     * Example: 2019-05-12
-     *
-     * @throws Exception
-     * @return string|null
-     */
-    private function cardholderAccountDate()
-    {
-        if (!$this->user) {
-            return null;
-        }
-
-        return $this->user->user_registered ? (new DateTime($this->user->user_registered))->format('Y-m-d') : null;
-    }
-
-    /**
-     * 3ds:cardholderAccountLastChange
-     * Date that the cardholder’s account with the 3DS Requestor was last changed. Including Billing or Shipping address, new payment account, or new user(s) added. Format: YYYY-MM-DD
-     * Example: 2019-05-12
-     *
-     * @throws Exception
-     * @return string|null
-     */
-    private function cardholderAccountLastChange()
-    {
-        if (!$this->user) {
-            return null;
-        }
-
-        $lastUpdate = get_user_meta($this->user->ID, 'last_update', true);
-
-        return $lastUpdate ? (new DateTime('@' . $lastUpdate))->format('Y-m-d') : null;
-    }
-
-    /**
-     * 3ds:cardholderAccountLastPasswordChange
-     * Date that cardholder’s account with the 3DS Requestor had a password change or account reset. Format: YYYY-MM-DD
-     * Example: 2019-05-12
-     *
-     * @return string|null
-     */
-    private function cardholderAccountLastPasswordChange()
-    {
-        return null;
-    }
-
-    /**
-     * 3ds:cardholderAccountPasswordChangeIndicator
-     * Length of time since the cardholder’s account with the 3DS Requestor had a password change or account reset.
-     * 01 -> No change
-     * 02 -> Changed during this transaction
-     * 03 -> Less than 30 days
-     * 04 -> 30 - 60 days
-     * 05 -> More than 60 days
-     *
-     * @return string|null
-     */
-    private function cardholderAccountPasswordChangeIndicator()
-    {
-        return null;
-    }
-
-    /**
-     * 3ds:cardholderAccountType
-     * Indicates the type of account. For example, for a multi-account card product.
-     * 01 -> Not applicable
-     * 02 -> Credit
-     * 03 -> Debit
-     * 80 -> JCB specific value for Prepaid
-     *
-     * @return string|null
-     */
-    private function cardholderAccountType()
-    {
-        return null;
-    }
-
-    /**
-     * 3ds:cardHolderAuthenticationData
-     * Data that documents and supports a specific authentication process. In the current version of the specification, this data element is not defined in detail, however the intention is that for each 3DS Requestor Authentication Method, this field carry data that the ACS can use to verify the authentication process.
-     *
-     * @return string|null
-     */
-    private function cardHolderAuthenticationData()
-    {
-        return null;
-    }
-
-    /**
-     * 3ds:cardholderAuthenticationDateTime
-     * Date and time in UTC of the cardholder authentication. Format: YYYY-MM-DD HH:mm
-     * Example: 2019-05-12 18:34
-     *
-     * @return string|null
-     */
-    private function cardholderAuthenticationDateTime()
-    {
-        return null;
-    }
-
-    /**
-     * 3ds:cardholderAuthenticationMethod
-     * Mechanism used by the Cardholder to authenticate to the 3DS Requestor.
-     * 01 -> No 3DS Requestor authentication occurred (i.e. cardholder "logged in" as guest)
-     * 02 -> Login to the cardholder account at the 3DS Requestor system using 3DS Requestor's own credentials
-     * 03 -> Login to the cardholder account at the 3DS Requestor system using federated ID
-     * 04 -> Login to the cardholder account at the 3DS Requestor system using issuer credentials
-     * 05 -> Login to the cardholder account at the 3DS Requestor system using third-party authentication
-     * 06 -> Login to the cardholder account at the 3DS Requestor system using FIDO Authenticator
-     *
-     * @return string|null
-     */
-    private function cardholderAuthenticationMethod()
-    {
-        return null;
-    }
-
-    /**
-     * 3ds:challengeIndicator
-     * Indicates whether a challenge is requested for this transaction. For example: For 01-PA, a 3DS Requestor may have concerns about the transaction, and request a challenge.
-     * 01 -> No preference
-     * 02 -> No challenge requested
-     * 03 -> Challenge requested: 3DS Requestor Preference
-     * 04 -> Challenge requested: Mandate
-     *
-     * @return string|null
-     */
-    private function challengeIndicator()
-    {
-        if( $this->get_option('force_challenge') == '1'){
-			return '03';
-		}else{
-			return null;
-		}
-    }
-
-    /**
-     * 3ds:channel
-     * Indicates the type of channel interface being used to initiate the transaction
-     * 01 -> App-based
-     * 02 -> Browser
-     * 03 -> 3DS Requestor Initiated
-     *
-     * @return string|null
-     */
-    private function channel()
-    {
-        return null;
-    }
-
-    /**
-     * 3ds:deliveryEmailAddress
-     * For electronic delivery, the email address to which the merchandise was delivered.
-     *
-     * @return string|null
-     */
-    private function deliveryEmailAddress()
-    {
-        return null;
-    }
-
-    /**
-     * 3ds:deliveryTimeframe
-     * Indicates the merchandise delivery timeframe.
-     * 01 -> Electronic Delivery
-     * 02 -> Same day shipping
-     * 03 -> Overnight shipping
-     * 04 -> Two-day or more shipping
-     *
-     * @return string|null
-     */
-    private function deliveryTimeframe()
-    {
-        return null;
-    }
-
-    /**
-     * 3ds:giftCardAmount
-     * For prepaid or gift card purchase, the purchase amount total of prepaid or gift card(s) in major units (for example, USD 123.45 is 123).
-     *
-     * @return string|null
-     */
-    private function giftCardAmount()
-    {
-        return null;
-    }
-
-    /**
-     * 3ds:giftCardCount
-     * For prepaid or gift card purchase, total count of individual prepaid or gift cards/codes purchased. Field is limited to 2 characters.
-     *
-     * @return string|null
-     */
-    private function giftCardCount()
-    {
-        return null;
-    }
-
-    /**
-     * 3ds:giftCardCurrency
-     * For prepaid or gift card purchase, the currency code of the card
-     *
-     * @return string|null
-     */
-    private function giftCardCurrency()
-    {
-        return null;
-    }
-
-    /**
-     * 3ds:homePhoneCountryPrefix
-     * Country Code of the home phone, limited to 1-3 characters
-     *
-     * @return string|null
-     */
-    private function homePhoneCountryPrefix()
-    {
-        return null;
-    }
-
-    /**
-     * 3ds:homePhoneNumber
-     * subscriber section of the number, limited to maximum 15 characters.
-     *
-     * @return string|null
-     */
-    private function homePhoneNumber()
-    {
-        return null;
-    }
-
-    /**
-     * 3ds:mobilePhoneCountryPrefix
-     * Country Code of the mobile phone, limited to 1-3 characters
-     *
-     * @return string|null
-     */
-    private function mobilePhoneCountryPrefix()
-    {
-        return null;
-    }
-
-    /**
-     * 3ds:mobilePhoneNumber
-     * subscriber section of the number, limited to maximum 15 characters.
-     *
-     * @return string|null
-     */
-    private function mobilePhoneNumber()
-    {
-        return null;
-    }
-
-    /**
-     * 3ds:paymentAccountAgeDate
-     * Date that the payment account was enrolled in the cardholder’s account with the 3DS Requestor. Format: YYYY-MM-DD
-     * Example: 2019-05-12
-     *
-     * @return string|null
-     */
-    private function paymentAccountAgeDate()
-    {
-        return null;
-    }
-
-    /**
-     * 3ds:paymentAccountAgeIndicator
-     * Indicates the length of time that the payment account was enrolled in the cardholder’s account with the 3DS Requestor.
-     * 01 -> No account (guest check-out)
-     * 02 -> During this transaction
-     * 03 -> Less than 30 days
-     * 04 -> 30 - 60 days
-     * 05 -> More than 60 days
-     *
-     * @return string|null
-     */
-    private function paymentAccountAgeIndicator()
-    {
-        return null;
-    }
-
-    /**
-     * 3ds:preOrderDate
-     * For a pre-ordered purchase, the expected date that the merchandise will be available.
-     * Format: YYYY-MM-DD
-     *
-     * @return string|null
-     */
-    private function preOrderDate()
-    {
-        return null;
-    }
-
-    /**
-     * 3ds:preOrderPurchaseIndicator
-     * Indicates whether Cardholder is placing an order for merchandise with a future availability or release date.
-     * 01 -> Merchandise available
-     * 02 -> Future availability
-     *
-     * @return string|null
-     */
-    private function preOrderPurchaseIndicator()
-    {
-        return null;
-    }
-
-    /**
-     * 3ds:priorAuthenticationData
-     * Data that documents and supports a specfic authentication porcess. In the current version of the specification this data element is not defined in detail, however the intention is that for each 3DS Requestor Authentication Method, this field carry data that the ACS can use to verify the authentication process. In future versionsof the application, these details are expected to be included. Field is limited to maximum 2048 characters.
-     *
-     * @return string|null
-     */
-    private function priorAuthenticationData()
-    {
-        return null;
-    }
-
-    /**
-     * 3ds:priorAuthenticationDateTime
-     * Date and time in UTC of the prior authentication. Format: YYYY-MM-DD HH:mm
-     * Example: 2019-05-12 18:34
-     *
-     * @return string|null
-     */
-    private function priorAuthenticationDateTime()
-    {
-        return null;
-    }
-
-    /**
-     * 3ds:priorAuthenticationMethod
-     * Mechanism used by the Cardholder to previously authenticate to the 3DS Requestor.
-     * 01 -> Frictionless authentication occurred by ACS
-     * 02 -> Cardholder challenge occurred by ACS
-     * 03 -> AVS verified
-     * 04 -> Other issuer methods
-     *
-     * @return string|null
-     */
-    private function priorAuthenticationMethod()
-    {
-        return null;
-    }
-
-    /**
-     * 3ds:priorReference
-     * This data element provides additional information to the ACS to determine the best approach for handling a request. The field is limited to 36 characters containing ACS Transaction ID for a prior authenticated transaction (for example, the first recurring transaction that was authenticated with the cardholder).
-     *
-     * @return string|null
-     */
-    private function priorReference()
-    {
-        return null;
-    }
-
-    /**
-     * 3ds:purchaseCountSixMonths
-     * Number of purchases with this cardholder account during the previous six months.
-     *
-     * @return int
-     */
-    private function purchaseCountSixMonths()
-    {
-        if (!$this->user) {
-            return null;
-        }
-
-        $count = 0;
-        foreach (['processing', 'completed', 'refunded', 'cancelled', 'authorization'] as $status) {
-            $orders = wc_get_orders([
-                'customer' => $this->user->ID,
-                'limit' => -1,
-                'status' => $status,
-                'date_after' => '6 months ago',
-            ]);
-            $count += count($orders);
-        }
-        return $count;
-    }
-
-    /**
-     * 3ds:purchaseDate
-     * Date and time of the purchase, expressed in UTC. Format: YYYY-MM-DD
-     **Note: if omitted we put in today's date
-     *
-     * @return string|null
-     */
-    private function purchaseDate()
-    {
-        return null;
-    }
-
-    /**
-     * 3ds:purchaseInstalData
-     * Indicates the maximum number of authorisations permitted for instalment payments. The field is limited to maximum 3 characters and value shall be greater than 1. The fields is required if the Merchant and Cardholder have agreed to installment payments, i.e. if 3DS Requestor Authentication Indicator = 03. Omitted if not an installment payment authentication.
-     *
-     * @return string|null
-     */
-    private function purchaseInstalData()
-    {
-        return null;
-    }
-
-    /**
-     * 3ds:recurringExpiry
-     * Date after which no further authorizations shall be performed. This field is required for 01-PA and for 02-NPA, if 3DS Requestor Authentication Indicator = 02 or 03.
-     * Format: YYYY-MM-DD
-     *
-     * @return string|null
-     */
-    private function recurringExpiry()
-    {
-        return null;
-    }
-
-    /**
-     * 3ds:recurringFrequency
-     * Indicates the minimum number of days between authorizations. The field is limited to maximum 4 characters. This field is required if 3DS Requestor Authentication Indicator = 02 or 03.
-     *
-     * @return string|null
-     */
-    private function recurringFrequency()
-    {
-        return null;
-    }
-
-    /**
-     * 3ds:reorderItemsIndicator
-     * Indicates whether the cardholder is reoreding previously purchased merchandise.
-     * 01 -> First time ordered
-     * 02 -> Reordered
-     *
-     * @return string|null
-     */
-    private function reorderItemsIndicator()
-    {
-        return null;
-    }
-
-    /**
-     * 3ds:shipIndicator
-     * Indicates shipping method chosen for the transaction. Merchants must choose the Shipping Indicator code that most accurately describes the cardholder's specific transaction. If one or more items are included in the sale, use the Shipping Indicator code for the physical goods, or if all digital goods, use the code that describes the most expensive item.
-     * 01 -> Ship to cardholder's billing address
-     * 02 -> Ship to another verified address on file with merchant
-     * 03 -> Ship to address that is different than the cardholder's billing address
-     * 04 -> "Ship to Store" / Pick-up at local store (Store address shall be populated in shipping address fields)
-     * 05 -> Digital goods (includes online services, electronic gift cards and redemption codes)
-     * 06 -> Travel and Event tickets, not shipped
-     * 07 -> Other (for example, Gaming, digital services not shipped, emedia subscriptions, etc.)
-     *
-     * @return string|null
-     */
-    private function shipIndicator()
-    {
-        return null;
-    }
-
-    /**
-     * 3ds:shippingAddressFirstUsage
-     * Date when the shipping address used for this transaction was first used with the 3DS Requestor. Format: YYYY-MM-DD
-     * Example: 2019-05-12
-     *
-     * @throws Exception
-     * @return string|null
-     */
-    private function shippingAddressFirstUsage()
-    {
-        if (!$this->user) {
-            return null;
-        }
-
-        $orders = wc_get_orders([
-            'customer' => $this->user->ID,
-            'shipping_address_1' => $this->order->get_shipping_address_1(),
-            'orderby' => 'date',
-            'order' => 'ASC',
-            'limit' => 1,
-            'paginate' => false,
-        ]);
-
-        /** @var WC_Order $firstOrder */
-        $firstOrder = reset($orders);
-        $firstOrderDate = $firstOrder && $firstOrder->get_date_created() ? $firstOrder->get_date_created() : new WC_DateTime();
-        return $firstOrderDate->format('Y-m-d');
-    }
-
-    /**
-     * 3ds:shippingAddressLine3
-     * Line 3 of customer's shipping address
-     *
-     * @return string|null
-     */
-    private function shippingAddressLine3()
-    {
-        return null;
-    }
-
-    /**
-     * 3ds:shippingAddressUsageIndicator
-     * Indicates when the shipping address used for this transaction was first used with the 3DS Requestor.
-     * 01 -> This transaction
-     * 02 -> Less than 30 days
-     * 03 -> 30 - 60 days
-     * 04 -> More than 60 days.
-     *
-     * @return string|null
-     */
-    private function shippingAddressUsageIndicator()
-    {
-        return null;
-    }
-
-    /**
-     * 3ds:shippingNameEqualIndicator
-     * Indicates if the Cardholder Name on the account is identical to the shipping Name used for this transaction.
-     * 01 -> Account Name identical to shipping Name
-     * 02 -> Account Name different than shipping Name
-     *
-     * @return string|null
-     */
-    private function shippingNameEqualIndicator()
-    {
-        return null;
-    }
-
-    /**
-     * 3ds:suspiciousAccountActivityIndicator
-     * Indicates whether the 3DS Requestor has experienced suspicious activity (including previous fraud) on the cardholder account.
-     * 01 -> No suspicious activity has been observed
-     * 02 -> Suspicious activity has been observed
-     *
-     * @return string|null
-     */
-    private function suspiciousAccountActivityIndicator()
-    {
-        return null;
-    }
-
-    /**
-     * 3ds:transactionActivityDay
-     * Number of transactions (successful and abandoned) for this cardholder account with the 3DS Requestor across all payment accounts in the previous 24 hours.
-     *
-     * @return string|null
-     */
-    private function transactionActivityDay()
-    {
-        return null;
-    }
-
-    /**
-     * 3ds:transactionActivityYear
-     * Number of transactions (successful and abandoned) for this cardholder account with the 3DS Requestor across all payment accounts in the previous year.
-     *
-     * @return string|null
-     */
-    private function transactionActivityYear()
-    {
-        return null;
-    }
-
-    /**
-     * 3ds:transType
-     * Identifies the type of transaction being authenticated. The values are derived from ISO 8583.
-     * 01 -> Goods / Service purchase
-     * 03 -> Check Acceptance
-     * 10 -> Account Funding
-     * 11 -> Quasi-Cash Transaction
-     * 28 -> Prepaid activation and Loan
-     *
-     * @return string|null
-     */
-    private function transType()
-    {
-        return null;
-    }
-
-    /**
-     * 3ds:workPhoneCountryPrefix
-     * Country Code of the work phone, limited to 1-3 characters
-     *
-     * @return string|null
-     */
-    private function workPhoneCountryPrefix()
-    {
-        return null;
-    }
-
-    /**
-     * 3ds:workPhoneNumber
-     * subscriber section of the number, limited to maximum 15 characters.
-     *
-     * @return string|null
-     */
-    private function workPhoneNumber()
-    {
-        return null;
     }
 }

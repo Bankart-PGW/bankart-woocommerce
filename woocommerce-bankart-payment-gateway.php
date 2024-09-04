@@ -2,10 +2,10 @@
 /**
  * Plugin Name: WooCommerce Bankart Payment Gateway Extension
  * Description: Bankart Payment Gateway for WooCommerce
- * Version: 1.7.4.3
+ * Version: 3.1.1.1
  * Author: Bankart
- * WC requires at least: 3.6.0
- * WC tested up to: 5.0.0
+ * WC requires at least: 8.0
+ * WC tested up to: 8.3.1
  * Text Domain: woocommerce-bankart-payment-gateway
  * Domain Path: /languages
  */
@@ -16,15 +16,24 @@ if (!defined('ABSPATH')) {
 define('BANKART_PAYMENT_GATEWAY_EXTENSION_URL', 'https://gateway.bankart.si/');
 #define('BANKART_PAYMENT_GATEWAY_EXTENSION_URL', 'https://bankart.paymentsandbox.cloud/');
 define('BANKART_PAYMENT_GATEWAY_EXTENSION_NAME', 'Bankart Payment Gateway');
-define('BANKART_PAYMENT_GATEWAY_EXTENSION_VERSION', '1.7.4.3');
+define('BANKART_PAYMENT_GATEWAY_EXTENSION_VERSION', '3.1.1.1');
 define('BANKART_PAYMENT_GATEWAY_EXTENSION_UID_PREFIX', 'bankart_payment_gateway_');
 define('BANKART_PAYMENT_GATEWAY_EXTENSION_BASEDIR', plugin_dir_path(__FILE__));
+
+#For HPOS
+add_action('before_woocommerce_init', function(){
+    if ( class_exists( \Automattic\WooCommerce\Utilities\FeaturesUtil::class ) ) {
+        \Automattic\WooCommerce\Utilities\FeaturesUtil::declare_compatibility( 'custom_order_tables', __FILE__, true );
+    }
+});
 
 add_action('plugins_loaded', function () {
     require_once BANKART_PAYMENT_GATEWAY_EXTENSION_BASEDIR . 'classes/includes/bankart-payment-gateway-provider.php';
     require_once BANKART_PAYMENT_GATEWAY_EXTENSION_BASEDIR . 'classes/includes/bankart-payment-gateway-paymentcard.php';
     require_once BANKART_PAYMENT_GATEWAY_EXTENSION_BASEDIR . 'classes/includes/bankart-payment-gateway-mcvisa.php';
     require_once BANKART_PAYMENT_GATEWAY_EXTENSION_BASEDIR . 'classes/includes/bankart-payment-gateway-diners.php';
+    require_once BANKART_PAYMENT_GATEWAY_EXTENSION_BASEDIR . 'classes/includes/bankart-payment-gateway-flik.php';
+
 
     load_plugin_textdomain('woocommerce-bankart-payment-gateway', FALSE, basename(BANKART_PAYMENT_GATEWAY_EXTENSION_BASEDIR) . '/languages');
 
@@ -75,5 +84,58 @@ add_action('plugins_loaded', function () {
             </div>';
         }
     }
-
 });
+
+//NEW AP
+add_action('admin_enqueue_scripts', 'enqueue_admin_validation_script');
+function enqueue_admin_validation_script() {
+    wp_enqueue_script(
+        'custom-admin-validation',
+        plugin_dir_url(__DIR__) . "woocommerce-bankart-payment-gateway/assets/js/bankart-custom-admin-validation.js",
+        ['jquery'],
+        false,
+        true
+    );
+
+    // Localize the script with translation strings
+    wp_localize_script('custom-admin-validation', 'wpTranslations', [
+        'minInstalmentError' => __('The minimum instalment amount must be greater than 0.', 'woocommerce-bankart-payment-gateway')
+    ]);
+}
+
+// Custom function to declare compatibility with cart_checkout_blocks feature 
+// Hook the custom function to the 'before_woocommerce_init' action
+add_action('before_woocommerce_init', function() {
+    if (class_exists('\Automattic\WooCommerce\Utilities\FeaturesUtil')) {
+        // Declare compatibility for 'cart_checkout_blocks'
+        \Automattic\WooCommerce\Utilities\FeaturesUtil::declare_compatibility('cart_checkout_blocks', __FILE__, true);
+    }
+});
+
+// Hook the custom function to the 'woocommerce_blocks_loaded' action
+add_action( 'woocommerce_blocks_loaded', function() {
+    // Check if the required class exists
+    if ( ! class_exists( 'Automattic\WooCommerce\Blocks\Payments\Integrations\AbstractPaymentMethodType' ) ) {
+        return;
+    }
+
+    // Include the custom Blocks Checkout class
+    require_once plugin_dir_path(__FILE__) . '/classes/includes/bankart-payment-blocks-base.php';
+    require_once plugin_dir_path(__FILE__) . '/classes/includes/bankart-payment-gateway-provider.php';
+    require_once plugin_dir_path(__FILE__) . '/classes/includes/bankart-diners-block-checkout.php';
+    require_once plugin_dir_path(__FILE__) . '/classes/includes/bankart-flik-block-checkout.php';
+    require_once plugin_dir_path(__FILE__) . '/classes/includes/bankart-mc-visa-block-checkout.php';
+    require_once plugin_dir_path(__FILE__) . '/classes/includes/bankart-payment-card-block-checkout.php'; 
+
+    // Hook the registration function to the 'woocommerce_blocks_payment_method_type_registration' action
+    add_action(
+        'woocommerce_blocks_payment_method_type_registration',
+        function( Automattic\WooCommerce\Blocks\Payments\PaymentMethodRegistry $payment_method_registry ) {
+            // Register an instance of My_Custom_Gateway_Blocks
+            foreach (WC_BankartPaymentGateway_Provider::get_payment_methods() as $payment_method) {
+                $payment_method_registry->register($payment_method);
+            }
+        }
+    );
+});
+#END NEW AP

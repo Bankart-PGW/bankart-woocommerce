@@ -80,13 +80,14 @@ final class WC_BankartPaymentGateway_Diners extends WC_BankartPaymentGateway_Pay
                 'title' => __('Installments', 'woocommerce-bankart-payment-gateway'),
                 'type' => 'select',
                 'description' => __('Select the option based on the agreement with your acquiring bank', 'woocommerce-bankart-payment-gateway'),
-                'default' => '12',
+                'default' => '1',
                 'options' => [
                     '1' => __('Instalments disabled', 'woocommerce-bankart-payment-gateway'),
                     '6' => __('Up to 6 instalments', 'woocommerce-bankart-payment-gateway'),
                     '12' => __('Up to 12 instalments', 'woocommerce-bankart-payment-gateway'),
                     '24' => __('Up to 24 instalments', 'woocommerce-bankart-payment-gateway'),
                     '36' => __('Up to 36 instalments', 'woocommerce-bankart-payment-gateway'),
+					'60' => __('Up to 60 instalments', 'woocommerce-bankart-payment-gateway'),
                 ],
             ],
             'instalments-description' => [

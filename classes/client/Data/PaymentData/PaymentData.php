@@ -1,6 +1,6 @@
 <?php
 
-namespace BankartPaymentGateway\Client\CustomerProfile\PaymentData;
+namespace BankartPaymentGateway\Client\Data\PaymentData;
 
 use BankartPaymentGateway\Client\Json\DataObject;
 
