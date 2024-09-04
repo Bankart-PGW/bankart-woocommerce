@@ -558,7 +558,6 @@ class WC_BankartPaymentGateway_PaymentCard extends WC_Payment_Gateway
                 'type' => 'textarea',
                 'description' => __('Description of the instalments option displayed to the customer', 'woocommerce-bankart-payment-gateway'),
                 'default' => __('Select the number of instalments, if your payment card supports selecting instalments at the point of sale', 'woocommerce-bankart-payment-gateway'),
-                'default'     => '50',
             ],
             'min_instalment' => [
                 'title' => __('Minimum instalment amount', 'woocommerce-bankart-payment-gateway'),
