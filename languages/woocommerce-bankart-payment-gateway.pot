@@ -367,3 +367,7 @@ msgstr ""
 #: assets/js/bankart-payment-gateway.js:38
 msgid "Invalid CVV code"
 msgstr ""
+
+#: assets/js/bankart-custom-admin-validation.js:12
+msgid "The minimum instalment amount must be greater than 0."
+msgstr ""

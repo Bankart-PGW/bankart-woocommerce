@@ -45,8 +45,9 @@ use Psr\Log\LogLevel;
  */
 class Client {
 
-    const VERSION = '3.0.1.1';
+    const VERSION = '3.1.1.1';
 
+    const PLATFORM = 'woocommerce';
     /**
      * The default url points to the Bankart Gateway
      */

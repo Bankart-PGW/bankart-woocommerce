@@ -168,7 +168,7 @@ class CurlClient implements ClientInterface {
         }
         $allHeaders[] = 'X-SDK-Type: Bankart PHP Client - Json';
         $allHeaders[] = 'X-SDK-Version: '.Client::VERSION;
-		$allHeaders[] = 'X-Source-Platform: woocommerce';
+		$allHeaders[] = 'X-Source-Platform: '.Client::PLATFORM;
         if (phpversion()) {
             $allHeaders[] = 'X-SDK-PlatformVersion: ' . phpversion();
         }

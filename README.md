@@ -5,7 +5,7 @@ Plugin Woocommerce should be installed and activated on WordPress prior installa
 
 ## Preinstallation
 1. Download .zip from GitHub repository. 
-1. Rename folder `bankart-woocommerce-feature-JSON` inside .zip file to `woocommerce-bankart-payment-gateway`.
+1. Rename folder `bankart-magento-master` inside .zip file to `woocommerce-bankart-payment-gateway`.
 
 ## Installation
 
@@ -21,14 +21,11 @@ Plugin Woocommerce should be installed and activated on WordPress prior installa
 
 1. Go to `Woocommerce` > `Settings` in your shop's admin area.
 1. Select category `Payments`.
-1. Enable one or more Credit Card or Flik options: `Payment cards - Payment card`,`Payment cards - Maestro/Mastercard/VISA`,`Payment cards - Diners`, `Payment cards - Flik` based on your requirements.
-1. For setup individual Credit Card\Flik options click on `Manage` 
+1. Enable one or more Credit Card options: `Payment cards - Payment card`,`Payment cards - Maestro/Mastercard/VISA`,`Payment cards - Diners` based on your requirements.
+1. For setup individual Credit Card options click on `Manage` 
     1. You can change a `Title` at payment method.
     1. Enter credentials.
 	1. Set `Transaction typ`.
 	1. Based on aggremet with your bank set `Installments` options.
 	1. If `Installments` are enabled set the minimum amount of installment
     1. Click on `Save changes`.
-	
-## Notes
-Plugin support cart and checkout shortcodes and not cart/checkout blocks. For reverting to the cart and checkout shortcodes please referer to https://woo.com/document/cart-checkout-blocks-status/#section-6

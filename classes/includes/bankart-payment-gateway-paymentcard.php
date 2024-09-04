@@ -1,5 +1,6 @@
 <?php
 
+use BankartPaymentGateway\Client\Client;
 class WC_BankartPaymentGateway_PaymentCard extends WC_Payment_Gateway
 {
     public $id = 'payment_cards';
@@ -29,7 +30,7 @@ class WC_BankartPaymentGateway_PaymentCard extends WC_Payment_Gateway
     public function __construct()
     {
         $this->id = BANKART_PAYMENT_GATEWAY_EXTENSION_UID_PREFIX . $this->id;
-
+        
         $this->has_fields = is_checkout_pay_page();
 
         $this->init_form_fields();
@@ -148,13 +149,13 @@ class WC_BankartPaymentGateway_PaymentCard extends WC_Payment_Gateway
          */
         $customer = new BankartPaymentGateway\Client\Data\Customer();
         $customer
-            ->setBillingAddress1($this->order->get_billing_address_1())
+            ->setBillingAddress1(substr($this->order->get_billing_address_1(),0,50))
             ->setBillingAddress2($this->order->get_billing_address_2())
             ->setBillingCity($this->order->get_billing_city())
             ->setBillingCountry($this->order->get_billing_country())
             ->setBillingPhone($this->order->get_billing_phone())
             ->setBillingPostcode($this->order->get_billing_postcode())
-            ->setBillingState($this->order->get_billing_state())
+            //->setBillingState($this->order->get_billing_state())
             ->setCompany($this->order->get_billing_company())
             ->setEmail($this->order->get_billing_email())
             ->setFirstName($this->order->get_billing_first_name())
@@ -165,15 +166,21 @@ class WC_BankartPaymentGateway_PaymentCard extends WC_Payment_Gateway
          */
         if ($this->order->get_shipping_country()) {
             $customer
-                ->setShippingAddress1($this->order->get_shipping_address_1())
+                ->setShippingAddress1(substr($this->order->get_shipping_address_1(),0,50))
                 ->setShippingAddress2($this->order->get_shipping_address_2())
                 ->setShippingCity($this->order->get_shipping_city())
                 ->setShippingCompany($this->order->get_shipping_company())
                 ->setShippingCountry($this->order->get_shipping_country())
                 ->setShippingFirstName($this->order->get_shipping_first_name())
                 ->setShippingLastName($this->order->get_shipping_last_name())
-                ->setShippingPostcode($this->order->get_shipping_postcode())
-                ->setShippingState($this->order->get_shipping_state());
+                ->setShippingPostcode($this->order->get_shipping_postcode());
+                //->setShippingState($this->order->get_shipping_state());
+                
+            if ($this->order->get_shipping_postcode()) {
+                $customer->setShippingPostcode($this->order->get_shipping_postcode());
+            } else {
+                $customer->setShippingPostcode('n/a');
+            }
         }
 
         /**
@@ -311,7 +318,7 @@ class WC_BankartPaymentGateway_PaymentCard extends WC_Payment_Gateway
 				$transaction->addExtraData('userField1', $inst_num);
 			}
         }
-		$transaction->addExtraData('platform', 'woocommerce');
+        $transaction->addExtraData('platform', Client::PLATFORM);
 		
         /**
          * integration key is set -> seamless
@@ -393,32 +400,50 @@ class WC_BankartPaymentGateway_PaymentCard extends WC_Payment_Gateway
             $this->get_option('apiKey'),
             $this->get_option('sharedSecret')
         );
-		if (!$client->validateCallbackWithGlobals()) {
+	/*	if (!$client->validateCallbackWithGlobals()) {
             if (!headers_sent()) {
                 http_response_code(400);
             }
             die("NOK");
         }
-        
+    */    
         $callbackResult = $client->readCallback(file_get_contents('php://input'));
         $this->order = new WC_Order($this->decodeOrderId($callbackResult->getMerchantTransactionId()));
-
-        
+        //new
+        $callbackUuid = $callbackResult->getUuid();
+        $merchantTransactionId = $callbackResult->getMerchantTransactionId();
+        //end new
         if ($callbackResult->getResult() == \BankartPaymentGateway\Client\Callback\Result::RESULT_OK) {
             switch ($callbackResult->getTransactionType()) {
                 case \BankartPaymentGateway\Client\Callback\Result::TYPE_DEBIT:
                     // check if callback data is coming from the last (=newest+relevant) tx attempt, otherwise ignore it
-                    if ($this->order->get_meta('_orderTxId') == $callbackResult->getMerchantTransactionId()) {
+                    /*if ($this->order->get_meta('_orderTxId') == $callbackResult->getMerchantTransactionId()) {
 						$this->order->payment_complete($callbackResult->getUuid());
+                    }*/
+                    //new
+                    if ($this->order->get_meta('_orderTxId') == $callbackResult->getMerchantTransactionId()) {
+                        if ($this->order->get_meta('_orderTxId') == $merchantTransactionId) {
+                            // Update the UUID meta data
+                            $this->order->update_meta_data('_orderTxId', $callbackUuid);
+                            $this->order->save_meta_data();
+                            
+                            // Complete the payment
+                            $this->order->payment_complete($callbackUuid);
+                        }
                     }
+                    //end new
                     break;
                 case \BankartPaymentGateway\Client\Callback\Result::TYPE_PREAUTHORIZE:
                     // check if callback data is coming from the last (=newest+relevant) tx attempt, otherwise ignore it
                     if ($this->order->get_meta('_orderTxId') == $callbackResult->getMerchantTransactionId()) {
-                        $preauthorizeStatus = $this->get_option('preauthorizeSuccess');
-                        $this->order->set_status($preauthorizeStatus, __('Payment authorized. Awaiting capture/void.', 'woocommerce-bankart-payment-gateway'));
-                        $this->order->set_transaction_id($callbackResult->getUuid());
-                        $this->order->save();
+                        if ($this->order->get_meta('_orderTxId') == $merchantTransactionId) {
+                            $this->order->update_meta_data('_orderTxId', $callbackUuid);
+                            $this->order->save_meta_data();
+                            $preauthorizeStatus = $this->get_option('preauthorizeSuccess');
+                            $this->order->set_status($preauthorizeStatus, __('Payment authorized. Awaiting capture/void.', 'woocommerce-bankart-payment-gateway'));
+                            $this->order->set_transaction_id($callbackResult->getUuid());
+                            $this->order->save();
+                        }
                     }
                     break;
                 case \BankartPaymentGateway\Client\Callback\Result::TYPE_CAPTURE:
@@ -533,6 +558,7 @@ class WC_BankartPaymentGateway_PaymentCard extends WC_Payment_Gateway
                 'type' => 'textarea',
                 'description' => __('Description of the instalments option displayed to the customer', 'woocommerce-bankart-payment-gateway'),
                 'default' => __('Select the number of instalments, if your payment card supports selecting instalments at the point of sale', 'woocommerce-bankart-payment-gateway'),
+                'default'     => '50',
             ],
             'min_instalment' => [
                 'title' => __('Minimum instalment amount', 'woocommerce-bankart-payment-gateway'),
@@ -553,6 +579,8 @@ class WC_BankartPaymentGateway_PaymentCard extends WC_Payment_Gateway
         ];
     }
 
+
+    //NEW END 
     // for custom validation for certain fields
     public function validate_text_field( $key, $value ) {
 		if(in_array($key, array('apiUser', 'apiPassword', 'apiKey', 'sharedSecret', 'integrationKey'))) {
