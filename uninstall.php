@@ -8,6 +8,7 @@ $options = array(
     'woocommerce_bankart_payment_gateway_mcvisa_cards_settings',
     'woocommerce_bankart_payment_gateway_payment_cards_settings',
     'woocommerce_bankart_payment_gateway_diners_cards_settings',
+	'woocommerce_bankart_payment_gateway_flik_payments_settings',
 );
 
 foreach ($options as $option) {

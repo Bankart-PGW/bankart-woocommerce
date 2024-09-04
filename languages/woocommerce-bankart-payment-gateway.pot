@@ -47,7 +47,7 @@ msgid "Text displayed to the customer on the payment selection menu"
 msgstr ""
 
 #: classes/includes/bankart-payment-gateway-diners.php:21
-msgid "Diners card"
+msgid "Diners card1"
 msgstr ""
 
 #: classes/includes/bankart-payment-gateway-diners.php:24
@@ -366,4 +366,8 @@ msgstr ""
 
 #: assets/js/bankart-payment-gateway.js:38
 msgid "Invalid CVV code"
+msgstr ""
+
+#: assets/js/bankart-custom-admin-validation.js:12
+msgid "The minimum instalment amount must be greater than 0."
 msgstr ""

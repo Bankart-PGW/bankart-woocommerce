@@ -69,9 +69,9 @@
     padding: 15px !important;
     padding-top:  10px !important;
     padding-bottom:  20px !important;
-    border: 1px solid #474747 !important;
+    border: 1px solid #243F60 !important;
     border-radius: 3px !important;
-    background-color: #ededed !important;
+    background-color: #f3f5f8 !important;
 }
 
 .bankart-row{
@@ -114,14 +114,15 @@
     font-family: "Arial",sans-serif !important;
     font-style: italic !important;
     font-size: 14px !important;
-    color: #636363 !important;
+    color: #3C5F88 !important;
     word-wrap: break-word !important;
+	font-weight: 600 !important;
 }
 
 .bankart-text{
     font-family: "Arial",sans-serif !important;
     font-size: 14px !important;
-    color: #636363 !important;
+    color: #3C5F88 !important;
     word-wrap: break-word !important;
     margin-bottom: 10px !important;
     margin-bottom: 15px !important;
@@ -132,12 +133,11 @@
     height: 30px !important;
     display: block !important;
     background: #fdfdfd !important;
-    border: 1px solid #ccc !important;
+    border: 1px solid #C3CFDC !important;
     border-radius: 4px !important;
     line-height: 1.5 !important;
     outline: 0 !important;
     background-clip: border-box !important;
-    box-shadow: inset 0 1px 1px rgba(0,0,0,.075) !important;
 }
 
 #bankart-cvv{
@@ -151,13 +151,14 @@
     font-family: "Arial",sans-serif !important;
     font-weight: bold !important;
     font-size: 14px !important;
-    color: #474747 !important;
+    color: #243F60 !important;
     line-height: 1.42857143 !important;
 }
 
 #bankart-expiry-month,
 #bankart-expiry-year,
-#bankart-instalments{
+#bankart-instalments,
+ #bankart-instalments{
     width: 60px !important;
     height: 30px !important;
     display: inline-block !important;
@@ -165,7 +166,7 @@
     font-weight: bold !important;
     font-size: 12px !important;
     line-height: 30px !important;
-    color: #474747 !important;
+    color: #243F60 !important;
     margin-right: 12px !important;
     padding: 6px !important;
     padding-left: 7px !important;
@@ -178,13 +179,16 @@
     width: 70px !important;
 }
 
+.bankart-error{
+    border: 1px solid #F00 !important;
+}
+
 .bankart-focus,
 #bankart-card_holder:focus,
 #bankart-expiry-month:focus,
-#bankart-expiry-year:focus{
-    border: 1px solid #ccc !important;
-    -webkit-box-shadow:inset 0 1px 1px rgba(0,0,0,.075),0 0 8px rgba(102,175,233,.6) !important;
-    box-shadow:inset 0 1px 1px rgba(0,0,0,.075),0 0 8px rgba(34,36,38,0.6) !important;
+#bankart-expiry-year:focus,
+#bankart-instalments:focus{
+    border: 1px solid #0460BD !important;
 }
 
 .bankart-error-text{
@@ -195,9 +199,7 @@
     color: #FF0000 !important;
 }
 
-.bankart-error{
-    border: 1px solid #F00 !important;
-}
+
 
 /* some themes mess with iframe styling */
 #bankart-card-number > iframe,

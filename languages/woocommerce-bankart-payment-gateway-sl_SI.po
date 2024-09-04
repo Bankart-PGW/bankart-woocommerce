@@ -3,21 +3,21 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: WooCommerce Bankart Payment Gateway Extension "
-"1.7.4.3\n"
+"3.1.1.1\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/woocommerce-"
 "bankart-payment-gateway\n"
+"POT-Creation-Date: 2021-10-07T18:13:58+00:00\n"
+"PO-Revision-Date: 2024-06-28 11:02+0200\n"
+"Last-Translator: \n"
 "Language-Team: \n"
+"Language: sl\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2021-10-07T18:13:58+00:00\n"
-"PO-Revision-Date: 2021-10-07 20:19+0200\n"
-"X-Generator: Poedit 2.4.2\n"
-"X-Domain: woocommerce-bankart-payment-gateway\n"
-"Last-Translator: \n"
 "Plural-Forms: nplurals=4; plural=(n%100==1 ? 0 : n%100==2 ? 1 : n%100>=3 "
 "&& n%100<=4 ? 2 : 3);\n"
-"Language: sl\n"
+"X-Generator: Poedit 3.4.4\n"
+"X-Domain: woocommerce-bankart-payment-gateway\n"
 
 #. Plugin Name of the plugin
 msgid "WooCommerce Bankart Payment Gateway Extension"
@@ -203,6 +203,12 @@ msgstr "Do 24 obrokov"
 msgid "Up to 36 instalments"
 msgstr "Do 36 obrokov"
 
+#: classes/includes/bankart-payment-gateway-diners.php:87
+#: classes/includes/bankart-payment-gateway-mcvisa.php:87
+#: classes/includes/bankart-payment-gateway-paymentcard.php:437
+msgid "Up to 60 instalments"
+msgstr "Do 60 obrokov"
+
 #: classes/includes/bankart-payment-gateway-diners.php:92
 #: classes/includes/bankart-payment-gateway-mcvisa.php:91
 #: classes/includes/bankart-payment-gateway-paymentcard.php:441
@@ -222,7 +228,7 @@ msgid ""
 "Select the number of instalments, if your payment card supports selecting "
 "instalments at the point of sale"
 msgstr ""
-"Izberite število obrokov, če vasa kartica podpira obročan plačila na tem "
+"Izberite število obrokov, če vasa kartica podpira obročna plačila na tem "
 "prodajnem mestu."
 
 #: classes/includes/bankart-payment-gateway-diners.php:98
@@ -389,3 +395,7 @@ msgstr "Prosim vnesite svojo trimestno varnostno kodo"
 #: assets/js/bankart-payment-gateway.js:38
 msgid "Invalid CVV code"
 msgstr "Neveljavna trimestna varnostna koda"
+
+#: woocommerce-bankart-payment-gateway.php:105
+msgid "The minimum instalment amount must be greater than 0."
+msgstr "Najnižji znesek obroka mora biti večji od 0."

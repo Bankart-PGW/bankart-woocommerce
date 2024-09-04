@@ -27,7 +27,7 @@ interface OffsiteInterface {
     public function getSuccessUrl();
 
     /**
-     * the url to which the Gateway redirects after a successful transaction
+     * the url to which Bankart redirects after a successful transaction
      *
      * @param string $successUrl
      */
@@ -39,7 +39,7 @@ interface OffsiteInterface {
     public function getCancelUrl();
 
     /**
-     * the url to which the Gateway redirects after a cancelled transaction
+     * the url to which Bankart redirects after a cancelled transaction
      *
      * @param string $cancelUrl
      */
@@ -51,7 +51,7 @@ interface OffsiteInterface {
     public function getErrorUrl();
 
     /**
-     * the url to which the Gateway redirects after a failed transaction
+     * the url to which Bankart redirects after a failed transaction
      *
      * @param string $errorUrl
      */
@@ -63,7 +63,7 @@ interface OffsiteInterface {
     public function getCallbackUrl();
 
     /**
-     * the url to which the Gateway sends the Callback notification
+     * the url to which Bankart sends the Callback notification
      *
      * @param string $callbackUrl
      */

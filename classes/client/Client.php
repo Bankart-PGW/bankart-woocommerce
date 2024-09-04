@@ -7,14 +7,20 @@ use BankartPaymentGateway\Client\CustomerProfile\DeleteProfileResponse;
 use BankartPaymentGateway\Client\CustomerProfile\GetProfileResponse;
 use BankartPaymentGateway\Client\CustomerProfile\PaymentInstrument;
 use BankartPaymentGateway\Client\CustomerProfile\UpdateProfileResponse;
+use BankartPaymentGateway\Client\Exception\GeneralErrorException;
+use BankartPaymentGateway\Client\Exception\TypeException;
 use BankartPaymentGateway\Client\Json\ErrorResponse;
 use BankartPaymentGateway\Client\Exception\RateLimitException;
+use BankartPaymentGateway\Client\Json\JsonParser;
+use BankartPaymentGateway\Client\Options\OptionsResult;
+use BankartPaymentGateway\Client\Schedule\ContinueSchedule;
 use BankartPaymentGateway\Client\Schedule\ScheduleData;
 use BankartPaymentGateway\Client\Exception\ClientException;
 use BankartPaymentGateway\Client\Exception\InvalidValueException;
 use BankartPaymentGateway\Client\Exception\TimeoutException;
 use BankartPaymentGateway\Client\Http\CurlClient;
 use BankartPaymentGateway\Client\Http\Response;
+use BankartPaymentGateway\Client\Schedule\StartSchedule;
 use BankartPaymentGateway\Client\StatusApi\StatusRequestData;
 use BankartPaymentGateway\Client\Transaction\Base\AbstractTransaction;
 use BankartPaymentGateway\Client\Transaction\Capture;
@@ -26,8 +32,9 @@ use BankartPaymentGateway\Client\Transaction\Refund;
 use BankartPaymentGateway\Client\Transaction\Register;
 use BankartPaymentGateway\Client\Transaction\Result;
 use BankartPaymentGateway\Client\Transaction\VoidTransaction;
-use BankartPaymentGateway\Client\Xml\Generator;
+use BankartPaymentGateway\Client\Json\JsonGenerator;
 use BankartPaymentGateway\Client\Xml\Parser;
+use BankartPaymentGateway\Client\Xml\XmlGenerator;
 use Psr\Log\LoggerInterface;
 use Psr\Log\LogLevel;
 
@@ -38,30 +45,58 @@ use Psr\Log\LogLevel;
  */
 class Client {
 
-    const VERSION = '1.7.4.3';
-    
+    const VERSION = '3.1.1.1';
+
+    const PLATFORM = 'woocommerce';
     /**
-     * The default url points to the Gateway
+     * The default url points to the Bankart Gateway
      */
-    const DEFAULT_GATEWAY_URL = '';
+    const DEFAULT_GATEWAY_URL = 'https://gateway.bankart.si/';
 
+    /** @deprecated for xml only */
     const TRANSACTION_ROUTE = 'transaction';
-
+    /** @deprecated for xml only */
     const SCHEDULE_ROUTE = 'schedule';
-
+    /** @deprecated for xml only */
     const STATUS_ROUTE = 'status';
-
+    /** @deprecated for xml only */
     const OPTIONS_ROUTE = 'options';
 
     const SCHEDULE_ACTION_START = 'startSchedule';
-    const SCHEDULE_ACTION_SHOW = 'showSchedule';
+
+    const SCHEDULE_ACTION_SHOW = 'getSchedule';
+
     const SCHEDULE_ACTION_PAUSE = 'pauseSchedule';
+
     const SCHEDULE_ACTION_CONTINUE = 'continueSchedule';
+
     const SCHEDULE_ACTION_CANCEL = 'cancelSchedule';
+
+    /* json endpoints */
 
     const CUSTOMER_PROFILE_GET = 'api/v3/customerProfiles/[API_KEY]/getProfile';
     const CUSTOMER_PROFILE_UPDATE = 'api/v3/customerProfiles/[API_KEY]/updateProfile';
     const CUSTOMER_PROFILE_DELETE = 'api/v3/customerProfiles/[API_KEY]/deleteProfile';
+
+    const TRANSACTION_DEBIT = 'api/v3/transaction/[API_KEY]/debit';
+    const TRANSACTION_PREAUTHORIZE = 'api/v3/transaction/[API_KEY]/preauthorize';
+    const TRANSACTION_CAPTURE = 'api/v3/transaction/[API_KEY]/capture';
+    const TRANSACTION_VOID = 'api/v3/transaction/[API_KEY]/void';
+    const TRANSACTION_REGISTER = 'api/v3/transaction/[API_KEY]/register';
+    const TRANSACTION_DEREGISTER = 'api/v3/transaction/[API_KEY]/deregister';
+    const TRANSACTION_REFUND = 'api/v3/transaction/[API_KEY]/refund';
+    const TRANSACTION_PAYOUT = 'api/v3/transaction/[API_KEY]/payout';
+
+    const STATUS_BY_UUID = 'api/v3/status/[API_KEY]/getByUuid/{uuid}';
+    const STATUS_BY_MERCHANT_TRANSACTION_ID = 'api/v3/status/[API_KEY]/getByMerchantTransactionId/{merchantTransactionId}';
+
+    const SCHEDULE_START = 'api/v3/schedule/[API_KEY]/start';
+    const SCHEDULE_GET = 'api/v3/schedule/[API_KEY]/{scheduleId}/get';
+    const SCHEDULE_PAUSE = 'api/v3/schedule/[API_KEY]/{scheduleId}/pause';
+    const SCHEDULE_CONTINUE = 'api/v3/schedule/[API_KEY]/{scheduleId}/continue';
+    const SCHEDULE_CANCEL = 'api/v3/schedule/[API_KEY]/{scheduleId}/cancel';
+
+    const OPTIONS_REQUEST = 'api/v3/options/[API_KEY]/{optionsName}';
 
     /**
      * @var string
@@ -69,7 +104,7 @@ class Client {
     protected static $gatewayUrl = 'https://gateway.bankart.si/';
 
     /**
-     * the api key given by the gateway
+     * the api key given by the bankart gateway
      *
      * @var string
      */
@@ -104,9 +139,10 @@ class Client {
     protected $language;
 
     /**
+     * @deprecated not in use anymore
+     *
      * set to true if you want to perform a test transaction
      *
-     * @deprecated
      * @var bool
      */
     protected $testMode;
@@ -116,8 +152,9 @@ class Client {
 	 */
     protected $logger;
 
+
     /**
-     * @var Generator
+     * @var JsonGenerator
      */
     protected $generator;
 
@@ -154,7 +191,6 @@ class Client {
      * @param mixed $level
      * @param string $message
      * @param array $context
-     * @return null
      */
     public function log($level, $message, array $context = array()) {
     	if ($this->logger && $this->logger instanceof LoggerInterface) {
@@ -164,21 +200,7 @@ class Client {
     }
 
     /**
-     * @param string              $transactionMethod
-     * @param AbstractTransaction $transaction
-     *
-     * @return string
-     */
-    public function buildXml($transactionMethod, AbstractTransaction $transaction) {
-        $dom = $this->getGenerator()->generateTransaction(lcfirst($transactionMethod), $transaction, $this->username,
-            $this->password, $this->language);
-        $xml = $dom->saveXML();
-
-        return $xml;
-    }
-
-    /**
-     * build the xml out of the Transaction Object and sends it
+     * build and send JSON request from given Transaction Object
      *
      * @param                     $transactionMethod
      * @param AbstractTransaction $transaction
@@ -187,109 +209,185 @@ class Client {
      *
      * @throws ClientException
      * @throws Http\Exception\ClientException
-     * @throws InvalidValueException
      * @throws TimeoutException
      * @throws RateLimitException
+     * @throws GeneralErrorException
      */
     protected function sendTransaction($transactionMethod, AbstractTransaction $transaction) {
-        $xml = $this->buildXml($transactionMethod, $transaction);
-        $httpResponse= $this->sendRequest($xml, self::$gatewayUrl.self::TRANSACTION_ROUTE);
+        $json = $this->getGenerator()->generateTransaction($transactionMethod, $transaction, $this->language);
 
-        return $this->getParser()->parseResult($httpResponse->getBody());
+        $endpoint = '';
+
+        switch($transactionMethod){
+            case 'register':
+                $endpoint .= self::TRANSACTION_REGISTER;
+                break;
+            case 'deregister':
+                $endpoint .= self::TRANSACTION_DEREGISTER;
+                break;
+            case 'preauthorize':
+                $endpoint .= self::TRANSACTION_PREAUTHORIZE;
+                break;
+            case 'void':
+                $endpoint .= self::TRANSACTION_VOID;
+                break;
+            case 'capture':
+                $endpoint .= self::TRANSACTION_CAPTURE;
+                break;
+            case 'refund':
+                $endpoint .= self::TRANSACTION_REFUND;
+                break;
+            case 'debit':
+                $endpoint .= self::TRANSACTION_DEBIT;
+                break;
+            case 'payout':
+                $endpoint .= self::TRANSACTION_PAYOUT;
+                break;
+        }
+
+        $httpResponse = $this->sendJsonApiRequest($endpoint, $json);
+
+        return $this->getParser()->parseTransactionResult($httpResponse->getBody());
     }
 
     /**
-     * @param ScheduleData $schedule
+     * either pass ScheduleData object OR StartSchedule object
+     *
+     * @param ScheduleData|StartSchedule $scheduleData
      *
      * @return Schedule\ScheduleResult
      * @throws ClientException
-     * @throws Exception\TypeException
      * @throws Http\Exception\ClientException
-     * @throws InvalidValueException
      * @throws TimeoutException
      * @throws RateLimitException
+     * @throws GeneralErrorException
      */
-    public function startSchedule(ScheduleData $schedule) {
-        return $this->sendScheduleRequest(self::SCHEDULE_ACTION_START, $schedule);
+    public function startSchedule($scheduleData) {
+        return $this->sendScheduleRequest(self::SCHEDULE_ACTION_START, $scheduleData);
     }
 
     /**
-     * @param ScheduleData $schedule
+     * either pass ScheduleData OR scheduleId
+     *
+     * @param ScheduleData|string $scheduleData
      *
      * @return Schedule\ScheduleResult
      * @throws ClientException
-     * @throws Exception\TypeException
      * @throws Http\Exception\ClientException
-     * @throws InvalidValueException
      * @throws TimeoutException
      * @throws RateLimitException
+     * @throws GeneralErrorException
      */
-    public function showSchedule(ScheduleData $schedule) {
-        return $this->sendScheduleRequest(self::SCHEDULE_ACTION_SHOW, $schedule);
+    public function showSchedule($scheduleData) {
+        return $this->sendScheduleRequest(self::SCHEDULE_ACTION_SHOW, $scheduleData);
     }
 
     /**
-     * @param ScheduleData $schedule
+     * either pass ScheduleData OR scheduleId
+     *
+     * @param ScheduleData|string $scheduleData
      *
      * @return Schedule\ScheduleResult
      * @throws ClientException
-     * @throws Exception\TypeException
      * @throws Http\Exception\ClientException
-     * @throws InvalidValueException
      * @throws TimeoutException
      * @throws RateLimitException
+     * @throws GeneralErrorException
      */
-    public function pauseSchedule(ScheduleData $schedule) {
-        return $this->sendScheduleRequest(self::SCHEDULE_ACTION_PAUSE, $schedule);
+    public function pauseSchedule($scheduleData) {
+        return $this->sendScheduleRequest(self::SCHEDULE_ACTION_PAUSE, $scheduleData);
     }
 
     /**
-     * @param ScheduleData $schedule
+     * either pass ScheduleData object OR ContinueSchedule
+     *
+     * @param ScheduleData|ContinueSchedule $scheduleData
      *
      * @return Schedule\ScheduleResult
      * @throws ClientException
-     * @throws Exception\TypeException
      * @throws Http\Exception\ClientException
-     * @throws InvalidValueException
      * @throws TimeoutException
      * @throws RateLimitException
+     * @throws GeneralErrorException
      */
-    public function continueSchedule(ScheduleData $schedule) {
-        return $this->sendScheduleRequest(self::SCHEDULE_ACTION_CONTINUE, $schedule);
+    public function continueSchedule($scheduleData) {
+        return $this->sendScheduleRequest(self::SCHEDULE_ACTION_CONTINUE, $scheduleData);
     }
 
     /**
-     * @param ScheduleData $schedule
+     * either pass ScheduleData OR scheduleId
+     *
+     * @param ScheduleData|string $scheduleData
      *
      * @return Schedule\ScheduleResult
      * @throws ClientException
-     * @throws Exception\TypeException
      * @throws Http\Exception\ClientException
-     * @throws InvalidValueException
      * @throws TimeoutException
      * @throws RateLimitException
+     * @throws GeneralErrorException
      */
-    public function cancelSchedule(ScheduleData $schedule) {
-        return $this->sendScheduleRequest(self::SCHEDULE_ACTION_CANCEL, $schedule);
+    public function cancelSchedule($scheduleData) {
+        return $this->sendScheduleRequest(self::SCHEDULE_ACTION_CANCEL, $scheduleData);
     }
 
     /**
-     * @param              $scheduleAction
-     * @param ScheduleData $schedule
+     * backwards compatible via ScheduleResultData
+     * => in future only the new params should be supported:
+     *  - StartSchedule (obj): used to start a schedule
+     *  - ContinueSchedule (obj): used to continue schedule
+     *  - string [scheduleId]: used to show, pause or cancel a schedule
+     *
+     * @param string                                             $action
+     * @param ScheduleData|StartSchedule|ContinueSchedule|string $scheduleData
      *
      * @return Schedule\ScheduleResult
      * @throws ClientException
-     * @throws Exception\TypeException
      * @throws Http\Exception\ClientException
-     * @throws InvalidValueException
      * @throws TimeoutException
      * @throws RateLimitException
+     * @throws GeneralErrorException
      */
-    public function sendScheduleRequest($scheduleAction, ScheduleData $schedule) {
+    public function sendScheduleRequest($action, $scheduleData) {
+        $json = $this->getGenerator()->generateSchedule($action, $scheduleData);
 
-        $scheduleXml = $this->getGenerator()->generateScheduleXml($scheduleAction, $schedule, $this->username, $this->password);
+        switch($action){
+            case self::SCHEDULE_ACTION_START:
+                $endpoint = self::SCHEDULE_START;
+                break;
+            case self::SCHEDULE_ACTION_SHOW:
+                $endpoint = self::SCHEDULE_GET;
+                break;
+            case self::SCHEDULE_ACTION_PAUSE:
+                $endpoint = self::SCHEDULE_PAUSE;
+                break;
+            case self::SCHEDULE_ACTION_CONTINUE:
+                $endpoint = self::SCHEDULE_CONTINUE;
+                break;
+            case self::SCHEDULE_ACTION_CANCEL:
+                $endpoint = self::SCHEDULE_CANCEL;
+                break;
+            default:
+                throw new TypeException('Invalid schedule action');
+        }
 
-        $httpResponse = $this->sendRequest($scheduleXml, self::$gatewayUrl.self::SCHEDULE_ROUTE);
+        //all schedule actions endpoints contain the scheduleId except 'schedule start'
+        if($action !== self::SCHEDULE_ACTION_START) {
+
+            //backwards compatible
+            if ($scheduleData instanceof ScheduleData || $scheduleData instanceof ContinueSchedule) {
+                $endpoint = str_replace('{scheduleId}', $scheduleData->getScheduleId(), $endpoint);
+            } elseif (is_string($scheduleData)) {
+                $endpoint = str_replace('{scheduleId}', $scheduleData, $endpoint);
+            }
+
+        }
+
+        if($action === self::SCHEDULE_ACTION_SHOW) {
+            // GET request only
+            $httpResponse = $this->sendJsonApiRequest($endpoint, [], true);
+        } else{
+            $httpResponse = $this->sendJsonApiRequest($endpoint, $json);
+        }
 
         return $this->getParser()->parseScheduleResult($httpResponse->getBody());
     }
@@ -301,90 +399,82 @@ class Client {
      * @throws ClientException
      * @throws Exception\TypeException
      * @throws Http\Exception\ClientException
-     * @throws InvalidValueException
      * @throws TimeoutException
      * @throws RateLimitException
+     * @throws GeneralErrorException
      */
     public function sendStatusRequest(StatusRequestData $statusRequestData) {
 
-        $statusRequestXml = $this->getGenerator()->generateStatusRequestXml($statusRequestData, $this->username, $this->password);
+        if($statusRequestData->getUuid()){
+            $endpoint = self::STATUS_BY_UUID;
+            $endpoint = str_replace('{uuid}', $statusRequestData->getUuid(), $endpoint);
+        } elseif($statusRequestData->getMerchantTransactionId()){
+            $endpoint = self::STATUS_BY_MERCHANT_TRANSACTION_ID;
+            $endpoint = str_replace('{merchantTransactionId}', $statusRequestData->getMerchantTransactionId(), $endpoint);
+        } else{
+            throw new TypeException('Either transactionUuid or merchantTransactionId is required!');
+        }
 
-        $httpResponse = $this->sendRequest($statusRequestXml, self::$gatewayUrl.self::STATUS_ROUTE);
+        $httpResponse = $this->sendJsonApiRequest($endpoint, [], true);
 
         return $this->getParser()->parseStatusResult($httpResponse->getBody());
     }
 
     /**
-     * @param string $xml
+     * @param string $path
+     * @param array  $dataArray
+     * @param bool   $get
      *
      * @return Response
      * @throws ClientException
      * @throws Http\Exception\ClientException
      * @throws TimeoutException
      * @throws RateLimitException
+     * @throws GeneralErrorException
      */
-    protected function sendRequest($xml, $url) {
-        
-        $httpResponse = $this->signAndSendXml($xml, $this->apiKey, $this->sharedSecret, $url);
+    protected function sendJsonApiRequest($path, $dataArray=[], $get=false) {
 
-        if ($httpResponse->getErrorCode() || $httpResponse->getErrorMessage()) {
-            throw new ClientException('Request failed: ' . $httpResponse->getErrorCode() . ' ' . $httpResponse->getErrorMessage());
-        }
-        if ($httpResponse->getStatusCode() == 504 || $httpResponse->getStatusCode() == 522) {
-            throw new TimeoutException('Request timed-out');
-        }
-        if ($httpResponse->getStatusCode() == 429) {
-            $rateLimitMessage = 'Rate Limit exceeded';
+        $url = self::$gatewayUrl . $path;
 
-            if (is_array($httpResponse->getHeaders())) {
+        $body = $get ? '' : json_encode($dataArray);
 
-                /**
-                 *
-                 * Following Headers are available in the response of rate-limited api requests:
-                 *      "X-RateLimit-Limit"
-                 *      "X-RateLimit-Remaining"
-                 *      "Retry-After"
-                 *
-                 */
+        $httpResponse = $this->signAndSendJson($body, $url, $this->username, $this->password, $this->apiKey, $this->sharedSecret, $get);
 
-                $rateLimit = !empty($httpResponse->getHeaders()['X-RateLimit-Limit']) ? $httpResponse->getHeaders()['X-RateLimit-Limit'] : null;
-                $retryAfter = !empty($httpResponse->getHeaders()['Retry-After']) ? $httpResponse->getHeaders()['Retry-After'] : null;
+        $statusCode = $httpResponse->getStatusCode();
 
-                if ($rateLimit) {
-                    $rateLimitMessage .= ' | Rate Limit: '.$rateLimit;
+/*          switch($statusCode){
+            case 504:
+            case 522:
+                throw new TimeoutException('Request timed-out');
+            case 429:
+                $rateLimitMsg = 'Too many requests';
+
+                if (is_array($httpResponse->getHeaders())) {
+
+                    $headers = array_change_key_case($httpResponse->getHeaders(), CASE_LOWER);
+                    $rateLimitMsg .= !empty($headers['x-ratelimit-limit']) ? ' | Rate Limit: '.$headers['x-ratelimit-limit'] : '';
+                    $rateLimitMsg .= !empty($headers['retry-after']) ? ' | Retry-After: '.$headers['retry-after'].' seconds' : '';
+
                 }
-                if ($rateLimit) {
-                    $rateLimitMessage .= ' | Retry-After: '.$retryAfter.' seconds';
+                throw new RateLimitException($rateLimitMsg);
+            default:
+                if ($httpResponse->getErrorCode() || $httpResponse->getErrorMessage()) {
+                    throw new ClientException('Request failed: ' . $httpResponse->getErrorCode() . ' ' . $httpResponse->getErrorMessage());
                 }
-            }
-
-            throw new RateLimitException($rateLimitMessage);
-        }
-
-        return $httpResponse;
-    }
-
-    /**
-     * @param array $dataArray
-     * @param string $path
-     * @return Response
-     * @throws ClientException
-     * @throws Http\Exception\ClientException
-     * @throws TimeoutException
-     */
-    protected function sendJsonApiRequest($dataArray, $path) {
-        
-        $url = self::$gatewayUrl.$path;
-        $body = json_encode($dataArray);
-        
-        $httpResponse = $this->signAndSendJson($body, $url, $this->username, $this->password, $this->apiKey, $this->sharedSecret);
-
-        if ($httpResponse->getErrorCode() || $httpResponse->getErrorMessage()) {
-            throw new ClientException('Request failed: ' . $httpResponse->getErrorCode() . ' ' . $httpResponse->getErrorMessage());
-        }
-        if ($httpResponse->getStatusCode() == 504 || $httpResponse->getStatusCode() == 522) {
-            throw new TimeoutException('Request timed-out');
-        }
+                if ($statusCode >= 400) {
+                    $json = json_decode($httpResponse->getBody(), true);
+                    if (isset($json['errorMessage'])) {
+                        $message = $json['errorMessage'];
+                    } elseif (isset($json['message'])) {
+                        $message = $json['message'];
+                    } else{
+                        $message = 'Request failed';
+                    }
+                    $code = isset($json['errorCode']) ? $json['errorCode'] : 0;
+                    throw new GeneralErrorException($message, $code);
+                }
+                break;
+        }  */
 
         return $httpResponse;
     }
@@ -407,6 +497,8 @@ class Client {
     }
 
     /**
+     * @deprecated use signAndSendJson()
+     *
      * signs and send a well-formed transaction xml
      *
      * @param string $xml
@@ -429,7 +521,8 @@ class Client {
 
         $curl = new CurlClient();
         $response = $curl
-        	->sign($apiKey, $sharedSecret, $url, $xml)
+
+            ->sign($apiKey, $sharedSecret, $url, $xml)
             ->post($url, $xml);
 
 		$this->log(LogLevel::DEBUG, "RESPONSE: " . $response->getBody(),
@@ -442,22 +535,26 @@ class Client {
     }
 
     /**
-     * signs and send a well-formed transaction xml
+     * signs and send a json POST request
      *
-     * @param $jsonBody
-     * @param string $url
+     * @param         $jsonBody
+     * @param string  $url
      *
-     * @param $username
-     * @param $password
-     * @param string $apiKey
-     * @param string $sharedSecret
+     * @param string  $username
+     * @param string  $password
+     * @param string  $apiKey
+     * @param string  $sharedSecret
+     * @param boolean $get
+     *
      * @return Response
      * @throws Http\Exception\ClientException
      */
-    public function signAndSendJson($jsonBody, $url, $username, $password, $apiKey, $sharedSecret) {
+    public function signAndSendJson($jsonBody, $url, $username, $password, $apiKey, $sharedSecret, $get) {
         $url = str_replace('[API_KEY]', $apiKey, $url);
-        
-        $this->log(LogLevel::DEBUG, "POST $url ",
+
+        $type = $get ? 'GET' : 'POST';
+
+        $this->log(LogLevel::DEBUG, "{$type} $url ",
             array(
                 'url' => $url,
                 'json' => $jsonBody,
@@ -467,10 +564,14 @@ class Client {
         );
 
         $curl = new CurlClient();
-        $response = $curl
-            ->signJson($sharedSecret, $url, $jsonBody)
-            ->setAuthentication($username, $password)
-            ->post($url, $jsonBody);
+        $curl->signJson($sharedSecret, $url, $jsonBody, $type)
+             ->setAuthentication($username, $password);
+
+        if($get){
+            $response = $curl->get($url);
+        } else{
+            $response = $curl->post($url, $jsonBody);
+        }
 
         $this->log(LogLevel::DEBUG, "RESPONSE: " . $response->getBody(),
             array(
@@ -490,27 +591,12 @@ class Client {
      *
      * @return Result
      * @throws ClientException
-     * @throws InvalidValueException
      * @throws Http\Exception\ClientException
+     * @throws RateLimitException
+     * @throws GeneralErrorException
      */
     public function register(Register $transactionData) {
         return $this->sendTransaction('register', $transactionData);
-    }
-
-    /**
-     * complete a registration (or poll status)
-     *
-     * NOTE: not all payment methods support this function
-     *
-     * @param Register $transactionData
-     *
-     * @return Result
-     * @throws ClientException
-     * @throws InvalidValueException
-     * @throws Http\Exception\ClientException
-     */
-    public function completeRegister(Register $transactionData) {
-        return $this->sendTransaction('completeRegister', $transactionData);
     }
 
     /**
@@ -522,8 +608,9 @@ class Client {
      *
      * @return Result
      * @throws ClientException
-     * @throws InvalidValueException
      * @throws Http\Exception\ClientException
+     * @throws RateLimitException
+     * @throws GeneralErrorException
      */
     public function deregister(Deregister $transactionData) {
         return $this->sendTransaction('deregister', $transactionData);
@@ -538,36 +625,24 @@ class Client {
      *
      * @return Result
      * @throws ClientException
-     * @throws InvalidValueException
      * @throws Http\Exception\ClientException
+     * @throws RateLimitException
+     * @throws GeneralErrorException
      */
     public function preauthorize(Preauthorize $transactionData) {
         return $this->sendTransaction('preauthorize', $transactionData);
     }
 
     /**
-     * complete a preauthorize transaction (or poll status)
-     *
-     * @param Preauthorize $transactionData
-     *
-     * @return Result
-     * @throws ClientException
-     * @throws InvalidValueException
-     * @throws Http\Exception\ClientException
-     */
-    public function completePreauthorize(Preauthorize $transactionData) {
-        return $this->sendTransaction('completePreauthorize', $transactionData);
-    }
-
-    /**
      * void a previously preauthorized transaction
      *
-     * @param \BankartPaymentGateway\Client\Transaction\VoidTransaction $transactionData
+     * @param VoidTransaction $transactionData
      *
      * @return Result
      * @throws ClientException
-     * @throws InvalidValueException
      * @throws Http\Exception\ClientException
+     * @throws RateLimitException
+     * @throws GeneralErrorException
      */
     public function void(VoidTransaction $transactionData) {
         return $this->sendTransaction('void', $transactionData);
@@ -580,8 +655,9 @@ class Client {
      *
      * @return Result
      * @throws ClientException
-     * @throws InvalidValueException
      * @throws Http\Exception\ClientException
+     * @throws RateLimitException
+     * @throws GeneralErrorException
      */
     public function capture(Capture $transactionData) {
         return $this->sendTransaction('capture', $transactionData);
@@ -594,8 +670,9 @@ class Client {
      *
      * @return Result
      * @throws ClientException
-     * @throws InvalidValueException
      * @throws Http\Exception\ClientException
+     * @throws RateLimitException
+     * @throws GeneralErrorException
      */
     public function refund(Refund $transactionData) {
         return $this->sendTransaction('refund', $transactionData);
@@ -608,26 +685,12 @@ class Client {
      *
      * @return Result
      * @throws ClientException
-     * @throws InvalidValueException
      * @throws Http\Exception\ClientException
+     * @throws RateLimitException
+     * @throws GeneralErrorException
      */
     public function debit(Debit $transactionData) {
         return $this->sendTransaction('debit', $transactionData);
-    }
-
-    /**
-     * complete a debit (or poll status)
-     *
-     * @param Debit $transactionData
-     *
-     * @return Result
-     * @throws ClientException
-     * @throws Http\Exception\ClientException
-     * @throws InvalidValueException
-     * @throws TimeoutException
-     */
-    public function completeDebit(Debit $transactionData) {
-        return $this->sendTransaction('completeDebit', $transactionData);
     }
 
     /**
@@ -638,11 +701,35 @@ class Client {
      * @return Result
      * @throws ClientException
      * @throws Http\Exception\ClientException
-     * @throws InvalidValueException
      * @throws TimeoutException
+     * @throws RateLimitException
+     * @throws GeneralErrorException
      */
     public function payout(Payout $transactionData) {
         return $this->sendTransaction('payout', $transactionData);
+    }
+
+    /**
+     * returns a list of options
+     * optionally parameters can be passed depending on the connector
+     *
+     * @param string $identifier
+     * @param array  $parameters [optional]
+     * @param        $_          [deprecated]
+     *
+     * @return OptionsResult
+     * @throws ClientException
+     * @throws Http\Exception\ClientException
+     * @throws RateLimitException
+     * @throws GeneralErrorException
+     */
+    public function getOptions($identifier, $parameters = [], $_ = null) {
+        $endpoint = self::OPTIONS_REQUEST;
+        $endpoint = str_replace('{optionsName}', $identifier, $endpoint);
+
+        $httpResponse = $this->sendJsonApiRequest($endpoint, ['parameters' => $parameters]);
+
+        return $this->getParser()->parseOptionsResult($httpResponse->getBody());
     }
 
     /**
@@ -652,10 +739,19 @@ class Client {
      * @param string $requestBody
      *
      * @return Callback\Result
-     * @throws Exception\InvalidValueException
+     * @throws \Exception
      */
     public function readCallback($requestBody) {
-        return $this->getParser()->parseCallback($requestBody);
+        if (strpos($requestBody, '<callback') !== false) {
+            $parser = new Parser();
+            return $parser->parseCallback($requestBody);
+        } elseif (!($json = json_decode($requestBody, true))) {
+            $parser = new Parser();
+            return $parser->parseCallback($requestBody);
+        } else {
+            $jsonParser = new JsonParser();
+            return $jsonParser->parseCallback($requestBody);
+        }
     }
 
     /**
@@ -673,15 +769,29 @@ class Client {
     public function validateCallback($requestBody, $requestQuery, $dateHeader, $authorizationHeader) {
         $curl = new CurlClient();
         $digest = $curl->createSignature($this->getSharedSecret(), 'POST', $requestBody, 'text/xml; charset=utf-8',
-            $dateHeader, $requestQuery);
-        $expectedSig = 'Gateway '.$this->getApiKey() . ':' . $digest;
+            $dateHeader, $requestQuery, false, false);
+        $digestNew = $curl->createSignature($this->getSharedSecret(), 'POST', $requestBody, 'text/xml; charset=utf-8',
+            $dateHeader, $requestQuery, false, true);
 
+        $expectedSig = 'IxoPay ' . $this->getApiKey() . ':' . $digest;
+        $expectedSig2 = 'Gateway '.$this->getApiKey() . ':' . $digest;
+        $expectedSig3 = 'Gateway '.$this->getApiKey() . ':' . $digestNew;
+
+
+        $expectedSigJson = $curl->createSignature($this->getSharedSecret(), 'POST', $requestBody, 'application/json; charset=utf-8',
+            $dateHeader, $requestQuery, true, false);
+        $expectedSigJsonNew = $curl->createSignature($this->getSharedSecret(), 'POST', $requestBody, 'application/json; charset=utf-8',
+            $dateHeader, $requestQuery, true, true);
+
+        if ($authorizationHeader == $expectedSigJson || $authorizationHeader == $expectedSigJsonNew) {
+            return true;
+        }
 
         if (strpos($authorizationHeader, 'Authorization:') !== false) {
             $authorizationHeader = trim(str_replace('Authorization:', '', $authorizationHeader));
         }
 
-        if ($authorizationHeader === $expectedSig) {
+        if ($authorizationHeader === $expectedSig || $authorizationHeader === $expectedSig2 || $authorizationHeader == $expectedSig3) {
             return true;
         } else {
             return false;
@@ -704,6 +814,18 @@ class Client {
             $dateHeader = null;
         }
 
+        //new JSON validation
+        $signature = null;
+        if (!empty($_SERVER['HTTP_X_SIGNATURE'])) {
+            $signature = $_SERVER['HTTP_X_SIGNATURE'];
+        } elseif (!empty($_SERVER['X_SIGNATURE'])) {
+            $signature = $_SERVER['X_SIGNATURE'];
+        }
+        if ($signature) {
+            return $this->validateCallback($requestBody, $requestQuery, $dateHeader, $signature);
+        }
+
+        //old XML validation
         if (!empty($_SERVER['HTTP_AUTHORIZATION'])) {
             $authorizationHeader = $_SERVER['HTTP_AUTHORIZATION'];
         } elseif (!empty($_SERVER['HTTP_X_AUTHORIZATION'])) {
@@ -720,17 +842,20 @@ class Client {
      * retrieves customer profile by profile-guid
      *
      * @param string $profileGuid
+     *
      * @return GetProfileResponse|ErrorResponse
      * @throws ClientException
      * @throws Http\Exception\ClientException
      * @throws TimeoutException
+     * @throws RateLimitException
+     * @throws GeneralErrorException
      */
     public function getCustomerProfileByProfileGuid($profileGuid) {
         $requestData = array(
             'profileGuid' => $profileGuid
         );
 
-        $response = $this->sendJsonApiRequest($requestData, self::CUSTOMER_PROFILE_GET);
+        $response = $this->sendJsonApiRequest(self::CUSTOMER_PROFILE_GET, $requestData);
         $json = json_decode($response->getBody());
         if ($response->getStatusCode() == 200 && $json && ($json->success || isset($json->profileExists))) {
             $result = new GetProfileResponse();
@@ -749,17 +874,20 @@ class Client {
      * retrieves customer profile by customer identification
      *
      * @param string $customerIdentification
+     *
      * @return GetProfileResponse|ErrorResponse
      * @throws ClientException
      * @throws Http\Exception\ClientException
      * @throws TimeoutException
+     * @throws RateLimitException
+     * @throws GeneralErrorException
      */
     public function getCustomerProfileByIdentification($customerIdentification) {
         $requestData = array(
             'customerIdentification' => $customerIdentification
         );
 
-        $response = $this->sendJsonApiRequest($requestData, self::CUSTOMER_PROFILE_GET);
+        $response = $this->sendJsonApiRequest(self::CUSTOMER_PROFILE_GET, $requestData);
         $json = json_decode($response->getBody());
         if ($response->getStatusCode() == 200 && $json && ($json->success || isset($json->profileExists))) {
             $result = new GetProfileResponse();
@@ -777,13 +905,16 @@ class Client {
     /**
      * updates customer profile by profile-guid
      *
-     * @param string $profileGuid
-     * @param CustomerData $customerData
+     * @param string                        $profileGuid
+     * @param CustomerData                  $customerData
      * @param string|PaymentInstrument|null $preferredInstrument
+     *
      * @return ErrorResponse|UpdateProfileResponse
      * @throws ClientException
      * @throws Http\Exception\ClientException
      * @throws TimeoutException
+     * @throws RateLimitException
+     * @throws GeneralErrorException
      */
     public function updateCustomerProfileByProfileGuid($profileGuid, CustomerData $customerData, $preferredInstrument = null) {
         $requestData = array(
@@ -799,7 +930,7 @@ class Client {
 
         }
 
-        $response = $this->sendJsonApiRequest($requestData, self::CUSTOMER_PROFILE_UPDATE);
+        $response = $this->sendJsonApiRequest(self::CUSTOMER_PROFILE_UPDATE, $requestData);
         $json = json_decode($response->getBody());
         if ($response->getStatusCode() == 200 && $json && $json->success) {
             $result = new UpdateProfileResponse();
@@ -818,13 +949,16 @@ class Client {
     /**
      * updates customer profile by customer identification
      *
-     * @param string $customerIdentification
-     * @param CustomerData $customerData
+     * @param string                        $customerIdentification
+     * @param CustomerData                  $customerData
      * @param string|PaymentInstrument|null $preferredInstrument
+     *
      * @return UpdateProfileResponse|ErrorResponse
      * @throws ClientException
      * @throws Http\Exception\ClientException
      * @throws TimeoutException
+     * @throws RateLimitException
+     * @throws GeneralErrorException
      */
     public function updateCustomerProfileByIdentification($customerIdentification, CustomerData $customerData, $preferredInstrument = null) {
         $requestData = array(
@@ -840,7 +974,7 @@ class Client {
 
         }
 
-        $response = $this->sendJsonApiRequest($requestData, self::CUSTOMER_PROFILE_UPDATE);
+        $response = $this->sendJsonApiRequest(self::CUSTOMER_PROFILE_UPDATE, $requestData);
         $json = json_decode($response->getBody());
         if ($response->getStatusCode() == 200 && $json && $json->success) {
             $result = new UpdateProfileResponse();
@@ -859,10 +993,13 @@ class Client {
      * deletes customer profile by profile-guid
      *
      * @param $profileGuid
+     *
      * @return DeleteProfileResponse|ErrorResponse
      * @throws ClientException
      * @throws Http\Exception\ClientException
      * @throws TimeoutException
+     * @throws RateLimitException
+     * @throws GeneralErrorException
      */
     public function deleteCustomerProfileByProfileGuid($profileGuid) {
         $requestData = array(
@@ -870,7 +1007,7 @@ class Client {
         );
 
 
-        $response = $this->sendJsonApiRequest($requestData, self::CUSTOMER_PROFILE_DELETE);;
+        $response = $this->sendJsonApiRequest(self::CUSTOMER_PROFILE_DELETE, $requestData);
         $json = json_decode($response->getBody());
         if ($response->getStatusCode() == 200 && $json && $json->success) {
             $result = new DeleteProfileResponse();
@@ -890,17 +1027,20 @@ class Client {
      * deletes customer profile by customer identification
      *
      * @param $customerIdentification
+     *
      * @return DeleteProfileResponse|ErrorResponse
      * @throws ClientException
      * @throws Http\Exception\ClientException
-     * @throws TimeoutException
+     * @throws TimeoutException#
+     * @throws RateLimitException
+     * @throws GeneralErrorException
      */
     public function deleteCustomerProfileByIdentification($customerIdentification) {
         $requestData = array(
             'customerIdentification' => $customerIdentification,
         );
 
-        $response = $this->sendJsonApiRequest($requestData, self::CUSTOMER_PROFILE_DELETE);;
+        $response = $this->sendJsonApiRequest(self::CUSTOMER_PROFILE_DELETE, $requestData);
         $json = json_decode($response->getBody());
         if ($response->getStatusCode() == 200 && $json && $json->success) {
             $result = new DeleteProfileResponse();
@@ -1013,60 +1153,11 @@ class Client {
     }
 
     /**
-     * @return boolean
-     * @deprecated
-     */
-    public function isTestMode() {
-        return $this->testMode;
-    }
-
-    /**
-     * @param boolean $testMode
-     *
-     * @return $this
-     * @deprecated
-     */
-    public function setTestMode($testMode) {
-        $this->testMode = $testMode;
-        return $this;
-    }
-
-    /**
-     * @param string $identifier
-     * @param mixed $args [optional]
-     * @param mixed $_ [optional]
-     * @return mixed
-     * @throws ClientException
-     * @throws InvalidValueException
-     */
-    public function getOptions($identifier, $args = null, $_ = null) {
-        if (func_num_args() > 1) {
-            $args = func_get_args();
-            array_shift($args);
-        } else {
-            $args = array();
-        }
-
-        $domDocument = $this->getGenerator()->generateOptions($this->getUsername(), $this->getPassword(), $identifier, $args);
-        $xml = $domDocument->saveXML();
-
-        $response = $this->signAndSendXml($xml, $this->apiKey, $this->sharedSecret, self::$gatewayUrl.self::OPTIONS_ROUTE);
-
-        if ($response->getErrorCode() || $response->getErrorMessage()) {
-            throw new ClientException('Request failed: ' . $response->getErrorCode() . ' ' . $response->getErrorMessage());
-        }
-
-        $return = $this->getParser()->parseOptionsResult($response->getBody());
-
-        return $return;
-    }
-
-    /**
-     * @return Generator
+     * @return JsonGenerator
      */
     public function getGenerator() {
         if (!$this->generator) {
-            $this->generator = new Generator();
+            $this->generator = new JsonGenerator();
         }
         return $this->generator;
     }
@@ -1079,10 +1170,10 @@ class Client {
     }
 
     /**
-     * @return Parser
+     * @return JsonParser
      */
     protected function getParser() {
-        return new Parser();
+        return new JsonParser();
     }
 
     /**
@@ -1098,7 +1189,7 @@ class Client {
     }
 
     /**
-     * Sets the Gateway url (API URL) to the given one. This allows to set up a development/test environment.
+     * Sets the Bankart Gateway url (API URL) to the given one. This allows to set up a development/test environment.
      * The API url is already set to the proper value by default.
      *
      * Please note that setting the API URL affects all instances (including the existing ones) of this client.
@@ -1114,13 +1205,18 @@ class Client {
      * @internal
      */
     public static function setApiUrl($url) {
-
         if (empty($url)) {
-            throw new InvalidValueException('The URL to the Gateway can not be empty!');
+            throw new InvalidValueException('The URL to the Bankart Gateway can not be empty!');
         }
 
-        if (!\filter_var($url, FILTER_VALIDATE_URL)) {
-            throw new InvalidValueException('The URL to the Gateway should be a valid URL!');
+        if (PHP_MAJOR_VERSION < 7 || (PHP_MAJOR_VERSION === 7 && PHP_MINOR_VERSION < 3)) {
+            if (!\filter_var($url, FILTER_VALIDATE_URL, FILTER_FLAG_SCHEME_REQUIRED | FILTER_FLAG_HOST_REQUIRED)) {
+                throw new InvalidValueException('The URL to the Bankart Gateway should be a valid URL!');
+            }
+        } else {
+            if (!\filter_var($url, FILTER_VALIDATE_URL)) {
+                throw new InvalidValueException('The URL to the Bankart Gateway should be a valid URL!');
+            }
         }
 
         static::$gatewayUrl = $url;
@@ -1154,6 +1250,117 @@ class Client {
      */
     public static function resetApiUrl() {
         static::setApiUrl(static::DEFAULT_GATEWAY_URL);
+    }
+
+    /* deprecated */
+
+    /**
+     * @deprecated not in use anymore
+     * @param Debit $transactionData
+     */
+    public function completeDebit(Debit $transactionData) { }
+
+    /**
+     * @deprecated not in use anymore
+     * @param Register $transactionData
+     */
+    public function completeRegister(Register $transactionData) { }
+
+    /**
+     * @deprecated not in use anymore
+     * @param Preauthorize $transactionData
+     */
+    public function completePreauthorize(Preauthorize $transactionData) { }
+
+    /**
+     * @deprecated not in use anymore
+     * @return boolean
+     */
+    public function isTestMode() {
+        return $this->testMode;
+    }
+
+    /**
+     * @deprecated not in use anymore
+     * @param boolean $testMode
+     *
+     * @return $this
+     */
+    public function setTestMode($testMode) {
+        $this->testMode = $testMode;
+        return $this;
+    }
+
+    /**
+     * @deprecated use sendJsonApiRequest
+     * @param string $xml
+     * @param string $url
+     *
+     * @return Response
+     * @throws ClientException
+     * @throws Http\Exception\ClientException
+     * @throws TimeoutException
+     * @throws RateLimitException
+     */
+    protected function sendXmlRequest($xml, $url) {
+
+        $httpResponse = $this->signAndSendXml($xml, $this->apiKey, $this->sharedSecret, $url);
+
+        if ($httpResponse->getErrorCode() || $httpResponse->getErrorMessage()) {
+            throw new ClientException('Request failed: ' . $httpResponse->getErrorCode() . ' ' . $httpResponse->getErrorMessage());
+        }
+        if ($httpResponse->getStatusCode() == 504 || $httpResponse->getStatusCode() == 522) {
+            throw new TimeoutException('Request timed-out');
+        }
+        if ($httpResponse->getStatusCode() == 429) {
+            $rateLimitMessage = 'Rate Limit exceeded';
+
+            if (is_array($httpResponse->getHeaders())) {
+
+                /**
+                 *
+                 * Following Headers are available in the response of rate-limited api requests:
+                 *      "X-RateLimit-Limit"
+                 *      "X-RateLimit-Remaining"
+                 *      "Retry-After"
+                 *
+                 */
+
+                $rateLimit = !empty($httpResponse->getHeaders()['X-RateLimit-Limit']) ? $httpResponse->getHeaders()['X-RateLimit-Limit'] : null;
+                $retryAfter = !empty($httpResponse->getHeaders()['Retry-After']) ? $httpResponse->getHeaders()['Retry-After'] : null;
+
+                if ($rateLimit) {
+                    $rateLimitMessage .= ' | Rate Limit: '.$rateLimit;
+                }
+                if ($rateLimit) {
+                    $rateLimitMessage .= ' | Retry-After: '.$retryAfter.' seconds';
+                }
+            }
+
+            throw new RateLimitException($rateLimitMessage);
+        }
+
+        return $httpResponse;
+    }
+
+    /**
+     * @deprecated
+     * @param string              $transactionMethod
+     * @param AbstractTransaction $transaction
+     *
+     * @return string
+     */
+    public function buildXml($transactionMethod, AbstractTransaction $transaction) {
+        $host = parse_url(self::$gatewayUrl, PHP_URL_HOST);
+
+        $xmlGenerator = new XmlGenerator();
+        $xmlGenerator->setNamespaceRoot('http://'.$host);
+
+        $dom = $xmlGenerator->generateTransaction(lcfirst($transactionMethod), $transaction, $this->username,
+            $this->password, $this->language);
+        $xml = $dom->saveXML();
+
+        return $xml;
     }
 
 }
