@@ -2,7 +2,7 @@
 /**
  * Plugin Name: WooCommerce Bankart Payment Gateway Extension
  * Description: Bankart Payment Gateway for WooCommerce
- * Version: 3.1.1.1
+ * Version: 3.1.1.2
  * Author: Bankart
  * WC requires at least: 8.0
  * WC tested up to: 8.3.1
@@ -16,7 +16,7 @@ if (!defined('ABSPATH')) {
 define('BANKART_PAYMENT_GATEWAY_EXTENSION_URL', 'https://gateway.bankart.si/');
 #define('BANKART_PAYMENT_GATEWAY_EXTENSION_URL', 'https://bankart.paymentsandbox.cloud/');
 define('BANKART_PAYMENT_GATEWAY_EXTENSION_NAME', 'Bankart Payment Gateway');
-define('BANKART_PAYMENT_GATEWAY_EXTENSION_VERSION', '3.1.1.1');
+define('BANKART_PAYMENT_GATEWAY_EXTENSION_VERSION', '3.1.1.2');
 define('BANKART_PAYMENT_GATEWAY_EXTENSION_UID_PREFIX', 'bankart_payment_gateway_');
 define('BANKART_PAYMENT_GATEWAY_EXTENSION_BASEDIR', plugin_dir_path(__FILE__));
 

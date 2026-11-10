@@ -400,13 +400,13 @@ class WC_BankartPaymentGateway_PaymentCard extends WC_Payment_Gateway
             $this->get_option('apiKey'),
             $this->get_option('sharedSecret')
         );
-	/*	if (!$client->validateCallbackWithGlobals()) {
+		if (!$client->validateCallbackWithGlobals()) {
             if (!headers_sent()) {
                 http_response_code(400);
             }
             die("NOK");
         }
-    */    
+        
         $callbackResult = $client->readCallback(file_get_contents('php://input'));
         $this->order = new WC_Order($this->decodeOrderId($callbackResult->getMerchantTransactionId()));
         //new
